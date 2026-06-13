@@ -23,6 +23,8 @@ struct Arena {
     uint32 calledMask; // bitmask of called numbers (bit n-1 ⇒ number n called)
     uint64 revealDeadline; // unix time the reveal window closes (0 until Revealing)
     uint96 gasReserve; // CELO carved from the pot to sponsor play (refunded surplus to winner)
+    // ── slot 3 (append) ──────────────────────────────────────────
+    uint64 createdAt; // unix time the arena was opened (for the join window)
 }
 
 // ── Game errors ──────────────────────────────────────────────────
@@ -63,3 +65,6 @@ error TransferFailed();
 error InvalidBoard();
 /// @dev No funds available to withdraw.
 error NothingToWithdraw();
+/// @dev Arena cannot be cancelled: caller is not the creator and the join window
+///      has not yet elapsed.
+error CancelNotAllowed();
