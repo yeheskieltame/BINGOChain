@@ -1,0 +1,20 @@
+{
+  "network": "celo-sepolia",
+  "chainId": 11142220,
+  "version": "1.0.0",
+  "contracts": {
+    "BingoChainProxy": "0xa21424B1F8c08e3d437942110081ef9F1b7589A6",
+    "BingoChainImplementation": "0x011AAFBC572A42C83b8A05b3B032F4631B2BB455"
+  },
+  "init": {
+    "owner": "0x987e2ed458ddAF6f900362F94558378056dCc226",
+    "treasury": "0x987e2ed458ddAF6f900362F94558378056dCc226",
+    "protocolFeeBps": 100
+  },
+  "explorer": {
+    "proxy": "https://sepolia.celoscan.io/address/0xa21424B1F8c08e3d437942110081ef9F1b7589A6#code",
+    "implementation": "https://sepolia.celoscan.io/address/0x011AAFBC572A42C83b8A05b3B032F4631B2BB455#code"
+  },
+  "verified": true,
+  "notes": "Dev/staging deployment. Owner is a single key on testnet; mainnet owner will be a Safe multisig."
+}
