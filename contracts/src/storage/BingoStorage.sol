@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import { Arena } from "../types/GameTypes.sol";
+
 /// @dev All mutable state lives here, isolated under an EIP-7201 namespace so
 ///      future upgrades can append fields without risking storage collisions.
 ///      NEVER change the order or type of existing fields — only append.
@@ -11,8 +13,15 @@ struct CoreStorage {
     bool _locked; // reentrancy guard flag (OZ v5 dropped ReentrancyGuardUpgradeable)
     // ── Arena registry ───────────────────────────────────────────
     uint256 arenaCount; // monotonic arena id counter
-    // ── Game state appended below in later epics (commit-reveal, turn
-    //    engine, payouts). EIP-7201 makes appending collision-safe. ──
+    // ── Game state (Epic C) ──────────────────────────────────────
+    mapping(uint256 => Arena) arenas; // arenaId → arena
+    mapping(uint256 => address[]) arenaPlayers; // arenaId → ordered player list
+    mapping(uint256 => mapping(address => bytes32)) boardCommit; // arenaId → player → hash(board+salt)
+    mapping(uint256 => mapping(address => bool)) hasJoined; // arenaId → player → joined
+    mapping(uint256 => mapping(address => bool)) hasRevealed; // arenaId → player → revealed
+    mapping(uint256 => mapping(address => uint8[25])) revealedBoard; // arenaId → player → board
+    mapping(uint256 => uint8[]) callSequence; // arenaId → numbers in call order
+    mapping(address => uint256) earnings; // pull-payment balances (CELO wei)
 }
 
 /// @title BingoStorage
