@@ -14,6 +14,9 @@ jobs:
   forge:
     name: build · fmt · test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,5 +52,6 @@ jobs:
       - name: Run Slither
         uses: crytic/slither-action@v0.4.0
         with:
+          target: contracts/
           fail-on: high
-          slither-config: slither.config.json
+          slither-config: contracts/slither.config.json
