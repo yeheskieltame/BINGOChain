@@ -489,7 +489,7 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
 
     /// @notice Semantic version of this implementation.
     function version() external pure virtual returns (string memory) {
-        return "1.0.0";
+        return "1.1.0";
     }
 
     /// @notice Current protocol fee recipient.

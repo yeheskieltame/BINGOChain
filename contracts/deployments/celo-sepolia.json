@@ -1,11 +1,15 @@
 {
   "network": "celo-sepolia",
   "chainId": 11142220,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "contracts": {
     "BingoChainProxy": "0xa21424B1F8c08e3d437942110081ef9F1b7589A6",
-    "BingoChainImplementation": "0x011AAFBC572A42C83b8A05b3B032F4631B2BB455"
+    "BingoChainImplementation": "0x5275C0400c39fe693c89916b043fCAEc282cd3E0"
   },
+  "implementationHistory": [
+    "0x011AAFBC572A42C83b8A05b3B032F4631B2BB455 (v1.0.0)",
+    "0x5275C0400c39fe693c89916b043fCAEc282cd3E0 (v1.1.0 — admin, cancelArena, hardening)"
+  ],
   "init": {
     "owner": "0x987e2ed458ddAF6f900362F94558378056dCc226",
     "treasury": "0x987e2ed458ddAF6f900362F94558378056dCc226",
