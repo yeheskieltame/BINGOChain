@@ -314,43 +314,14 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         if (a.state != GameState.Revealing) revert WrongState(arenaId, GameState.Revealing, a.state);
 
         address[] memory players = s.arenaPlayers[arenaId];
-        uint8[] memory calls = s.callSequence[arenaId];
         uint256 n = players.length;
 
-        // Per-player replay results.
-        uint16[] memory idxs = new uint16[](n);
-        bool[] memory achieved = new bool[](n);
-        uint8[] memory lines = new uint8[](n);
-        uint256 revealedCount;
-        uint16 bestIdx = type(uint16).max;
-
-        for (uint256 i = 0; i < n; i++) {
-            if (!s.hasRevealed[arenaId][players[i]]) continue;
-            revealedCount++;
-            uint8[25] memory board = s.revealedBoard[arenaId][players[i]];
-            (uint16 idx, bool ok) = _bingoIndex(board, calls);
-            idxs[i] = idx;
-            achieved[i] = ok;
-            lines[i] = LineLib.countCompletedLines(BoardLib.marks(board, a.calledMask));
-            if (ok && idx < bestIdx) bestIdx = idx;
-        }
+        // Replay the recorded calls to decide winners (kept in a helper so settle
+        // stays shallow on the stack and easy to audit).
+        (bool[] memory isWinner, uint256 winnerCount, uint256 revealedCount) = _resolveWinners(arenaId);
 
         // Finality: window closed, or everyone already revealed.
         if (block.timestamp <= a.revealDeadline && revealedCount != n) revert RevealWindowOpen();
-
-        bool bingoHappened = bestIdx != type(uint16).max;
-        uint8 bestLines;
-        if (!bingoHappened) {
-            for (uint256 i = 0; i < n; i++) {
-                if (s.hasRevealed[arenaId][players[i]] && lines[i] > bestLines) bestLines = lines[i];
-            }
-        }
-
-        uint256 winnerCount;
-        for (uint256 i = 0; i < n; i++) {
-            if (!s.hasRevealed[arenaId][players[i]]) continue;
-            if (bingoHappened ? (achieved[i] && idxs[i] == bestIdx) : (lines[i] == bestLines)) winnerCount++;
-        }
 
         a.state = GameState.Settled;
 
@@ -368,9 +339,7 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         uint256 share = prizePool / winnerCount;
         uint256 remainder = prizePool - share * winnerCount;
         for (uint256 i = 0; i < n; i++) {
-            if (!s.hasRevealed[arenaId][players[i]]) continue;
-            bool isWinner = bingoHappened ? (achieved[i] && idxs[i] == bestIdx) : (lines[i] == bestLines);
-            if (isWinner) {
+            if (isWinner[i]) {
                 s.earnings[players[i]] += share;
                 emit WinnerPaid(arenaId, players[i], share);
             }
@@ -379,6 +348,56 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         s.earnings[s.treasury] += fee + remainder;
 
         emit ArenaSettled(arenaId, prizePool, fee, uint8(winnerCount));
+    }
+
+    /// @dev Replays the recorded call sequence against revealed boards and returns
+    ///      the winner flags. Winner = reaches 5 lines at the earliest call index;
+    ///      if none do, the most completed lines at the final state. Non-revealers
+    ///      are never winners. Pure read — `settle` performs the state changes.
+    function _resolveWinners(uint256 arenaId)
+        internal
+        view
+        returns (bool[] memory isWinner, uint256 winnerCount, uint256 revealedCount)
+    {
+        CoreStorage storage s = _s();
+        Arena storage a = s.arenas[arenaId];
+        address[] memory players = s.arenaPlayers[arenaId];
+        uint8[] memory calls = s.callSequence[arenaId];
+        uint256 n = players.length;
+
+        uint16[] memory idxs = new uint16[](n);
+        bool[] memory achieved = new bool[](n);
+        uint8[] memory lines = new uint8[](n);
+        uint16 bestIdx = type(uint16).max;
+
+        for (uint256 i = 0; i < n; i++) {
+            if (!s.hasRevealed[arenaId][players[i]]) continue;
+            revealedCount++;
+            uint8[25] memory board = s.revealedBoard[arenaId][players[i]];
+            (uint16 idx, bool ok) = _bingoIndex(board, calls);
+            idxs[i] = idx;
+            achieved[i] = ok;
+            lines[i] = LineLib.countCompletedLines(BoardLib.marks(board, a.calledMask));
+            if (ok && idx < bestIdx) bestIdx = idx;
+        }
+
+        bool bingoHappened = bestIdx != type(uint16).max;
+        uint8 bestLines;
+        if (!bingoHappened) {
+            for (uint256 i = 0; i < n; i++) {
+                if (s.hasRevealed[arenaId][players[i]] && lines[i] > bestLines) bestLines = lines[i];
+            }
+        }
+
+        isWinner = new bool[](n);
+        for (uint256 i = 0; i < n; i++) {
+            if (!s.hasRevealed[arenaId][players[i]]) continue;
+            bool win = bingoHappened ? (achieved[i] && idxs[i] == bestIdx) : (lines[i] == bestLines);
+            if (win) {
+                isWinner[i] = true;
+                winnerCount++;
+            }
+        }
     }
 
     /// @notice Withdraw your accumulated winnings (pull pattern).
@@ -460,10 +479,10 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
 
     /// @notice Rescue ERC20 tokens accidentally sent to the contract. Cannot touch
     ///         native CELO — that is player escrow and is never owner-movable.
-    function rescueERC20(IERC20 token, address to, uint256 amount) external onlyOwner {
+    function rescueERC20(IERC20 token, address to, uint256 amount) external onlyOwner nonReentrant {
         if (to == address(0)) revert ZeroAddress();
-        token.safeTransfer(to, amount);
         emit ERC20Rescued(address(token), to, amount);
+        token.safeTransfer(to, amount);
     }
 
     // ── Views ────────────────────────────────────────────────────
