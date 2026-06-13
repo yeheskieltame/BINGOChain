@@ -8,6 +8,8 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { BingoStorage, CoreStorage } from "./storage/BingoStorage.sol";
 import { GameState, ZeroAddress, FeeTooHigh, Reentrancy } from "./types/BingoTypes.sol";
@@ -47,6 +49,8 @@ import { LineLib } from "./libraries/LineLib.sol";
 ///      ReentrancyGuardUpgradeable. Game logic (commit-reveal, turn engine,
 ///      payouts) is layered on in subsequent epics.
 contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgradeable {
+    using SafeERC20 for IERC20;
+
     /// @notice Hard ceiling on the protocol fee (5%). Defends the admin setter
     ///         from ever configuring an abusive fee.
     uint16 public constant MAX_FEE_BPS = 500;
@@ -383,6 +387,52 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
             }
         }
         return (0, false);
+    }
+
+    // ── Admin (onlyOwner; owner is a Safe multisig on mainnet) ───
+
+    /// @notice Emitted when the protocol fee changes.
+    event ProtocolFeeUpdated(uint16 oldBps, uint16 newBps);
+    /// @notice Emitted when the treasury changes.
+    event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
+    /// @notice Emitted when stray ERC20 tokens are rescued.
+    event ERC20Rescued(address indexed token, address indexed to, uint256 amount);
+
+    /// @notice Update the protocol fee (bounded by MAX_FEE_BPS). Applies to
+    ///         arenas settled after the change; in-flight stakes are unaffected.
+    function setProtocolFee(uint16 newBps) external onlyOwner {
+        if (newBps > MAX_FEE_BPS) revert FeeTooHigh(newBps);
+        CoreStorage storage s = _s();
+        emit ProtocolFeeUpdated(s.protocolFeeBps, newBps);
+        s.protocolFeeBps = newBps;
+    }
+
+    /// @notice Rotate the treasury (protocol fee recipient).
+    function setTreasury(address newTreasury) external onlyOwner {
+        if (newTreasury == address(0)) revert ZeroAddress();
+        CoreStorage storage s = _s();
+        emit TreasuryUpdated(s.treasury, newTreasury);
+        s.treasury = newTreasury;
+    }
+
+    /// @notice Pause entry to game actions (createArena/commitBoard/callNumber/
+    ///         claimBingo/revealBoard/settle). Withdrawals stay open so players
+    ///         can always exit.
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /// @notice Resume game actions.
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    /// @notice Rescue ERC20 tokens accidentally sent to the contract. Cannot touch
+    ///         native CELO — that is player escrow and is never owner-movable.
+    function rescueERC20(IERC20 token, address to, uint256 amount) external onlyOwner {
+        if (to == address(0)) revert ZeroAddress();
+        token.safeTransfer(to, amount);
+        emit ERC20Rescued(address(token), to, amount);
     }
 
     // ── Views ────────────────────────────────────────────────────
