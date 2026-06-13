@@ -1,19 +1,12 @@
-# Foundry
-cache/
-out/
-broadcast/*/dry-run/
+# OS
+.DS_Store
 
 # Env / secrets
 .env
 .env.*
 !.env.example
 
-# OS
-.DS_Store
-
-# Node (frontend, later)
+# Node (frontend)
 node_modules/
-
-# Coverage
-lcov.info
-coverage/
+apps/web/.next/
+apps/web/out/
