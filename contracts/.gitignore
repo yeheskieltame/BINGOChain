@@ -1,0 +1,13 @@
+# Foundry
+cache/
+out/
+broadcast/*/dry-run/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Coverage
+lcov.info
+coverage/

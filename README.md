@@ -88,6 +88,24 @@ Created → Committed → Playing → Revealing → Settled
 - **Frontend:** MiniPay-compatible mini app (phone-number identity, no wallet setup)
 - **Settlement token:** CELO (cUSD/USDC support planned)
 
+## Repository layout
+
+A monorepo keeps the smart contracts and the app cleanly separated:
+
+```
+BINGOChain/
+├── contracts/        # Foundry project — Solidity contracts, tests, deploy scripts
+│   ├── src/          # BingoChain implementation, proxy, storage, types
+│   ├── test/         # unit / fuzz / invariant suites
+│   └── lib/          # vendored deps (OpenZeppelin, forge-std)
+├── apps/
+│   └── web/          # MiniPay mini app (frontend) — planned
+├── README.md · LICENSE · SECURITY.md · CONTRIBUTING.md
+└── .github/          # CI (build · fmt · test · Slither)
+```
+
+All Foundry commands run inside `contracts/` (e.g. `cd contracts && forge test`).
+
 ## Architecture
 
 BINGOChain ships as a **UUPS-upgradeable** contract so the game engine can evolve

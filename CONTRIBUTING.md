@@ -5,11 +5,13 @@ is the product, so the bar for changes is high.
 
 ## Development setup
 
+The smart contracts live in [`contracts/`](./contracts); the MiniPay frontend will
+live in [`apps/web/`](./apps/web).
+
 ```bash
 # Install Foundry: https://book.getfoundry.sh/getting-started/installation
-git clone https://github.com/yeheskieltame/BINGOChain
-cd BINGOChain
-forge install            # pulls submodules (OpenZeppelin, forge-std)
+git clone --recurse-submodules https://github.com/yeheskieltame/BINGOChain
+cd BINGOChain/contracts
 forge build
 forge test -vvv
 ```
