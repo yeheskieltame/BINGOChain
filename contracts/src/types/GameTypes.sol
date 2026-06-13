@@ -35,6 +35,8 @@ error WrongState(uint256 arenaId, GameState expected, GameState actual);
 error InvalidPlayerCount(uint8 maxPlayers);
 /// @dev Provided stake is below the minimum entry stake.
 error StakeTooLow(uint256 sent, uint256 required);
+/// @dev Deposited value does not exactly equal the arena's entry stake.
+error IncorrectStake(uint256 sent, uint256 required);
 /// @dev Caller already joined this arena.
 error AlreadyJoined();
 /// @dev Arena already has its full set of players.
