@@ -10,7 +10,17 @@ import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/acc
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
 import { BingoStorage, CoreStorage } from "./storage/BingoStorage.sol";
-import { ZeroAddress, FeeTooHigh, Reentrancy } from "./types/BingoTypes.sol";
+import { GameState, ZeroAddress, FeeTooHigh, Reentrancy } from "./types/BingoTypes.sol";
+import {
+    Arena,
+    ArenaNotFound,
+    WrongState,
+    InvalidPlayerCount,
+    StakeTooLow,
+    IncorrectStake,
+    AlreadyJoined,
+    ArenaFull
+} from "./types/GameTypes.sol";
 
 /// @title BingoChain
 /// @notice Strategic onchain bingo on Celo. Players commit a sealed 5×5 board,
@@ -77,6 +87,75 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
     /// @dev Restricts upgrades to the owner (Safe multisig on mainnet).
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
 
+    // ── Game constants ───────────────────────────────────────────
+
+    /// @notice Minimum players per arena.
+    uint8 public constant MIN_PLAYERS = 2;
+    /// @notice Maximum players per arena.
+    uint8 public constant MAX_PLAYERS = 6;
+    /// @notice Minimum entry stake per player (1 CELO).
+    uint256 public constant MIN_STAKE = 1 ether;
+
+    // ── Game events ──────────────────────────────────────────────
+
+    /// @notice A new arena was opened.
+    event ArenaCreated(uint256 indexed arenaId, address indexed creator, uint96 stake, uint8 maxPlayers);
+    /// @notice A player joined an arena (committed a sealed board + deposited stake).
+    event PlayerJoined(uint256 indexed arenaId, address indexed player, uint8 joinedCount);
+    /// @notice All seats filled — the arena is sealed and ready to play.
+    event GameReady(uint256 indexed arenaId);
+
+    // ── Game: arena lifecycle ────────────────────────────────────
+
+    /// @notice Open a new arena. The creator sets the entry stake and seat count
+    ///         but joins like everyone else via {commitBoard}.
+    /// @param maxPlayers Seats (MIN_PLAYERS..MAX_PLAYERS).
+    /// @param stake      Entry stake per player in wei (≥ MIN_STAKE).
+    /// @return arenaId   The new arena's id.
+    function createArena(uint8 maxPlayers, uint96 stake) external whenNotPaused returns (uint256 arenaId) {
+        if (maxPlayers < MIN_PLAYERS || maxPlayers > MAX_PLAYERS) revert InvalidPlayerCount(maxPlayers);
+        if (stake < MIN_STAKE) revert StakeTooLow(stake, MIN_STAKE);
+
+        CoreStorage storage s = _s();
+        arenaId = ++s.arenaCount;
+        Arena storage a = s.arenas[arenaId];
+        a.creator = msg.sender;
+        a.stake = stake;
+        a.maxPlayers = maxPlayers;
+        a.state = GameState.Created;
+
+        emit ArenaCreated(arenaId, msg.sender, stake, maxPlayers);
+    }
+
+    /// @notice Join an arena by depositing the exact stake and committing a sealed
+    ///         board hash. Seals the arena (state → Committed) once full.
+    /// @param arenaId         Target arena.
+    /// @param boardCommitment keccak256(abi.encode(board, salt)) — see CommitLib.
+    function commitBoard(uint256 arenaId, bytes32 boardCommitment) external payable whenNotPaused nonReentrant {
+        CoreStorage storage s = _s();
+        Arena storage a = s.arenas[arenaId];
+
+        if (a.creator == address(0)) revert ArenaNotFound(arenaId);
+        if (a.state != GameState.Created) revert WrongState(arenaId, GameState.Created, a.state);
+        if (s.hasJoined[arenaId][msg.sender]) revert AlreadyJoined();
+        if (a.joinedCount >= a.maxPlayers) revert ArenaFull();
+        if (msg.value != a.stake) revert IncorrectStake(msg.value, a.stake);
+
+        s.hasJoined[arenaId][msg.sender] = true;
+        s.boardCommit[arenaId][msg.sender] = boardCommitment;
+        s.arenaPlayers[arenaId].push(msg.sender);
+        unchecked {
+            a.joinedCount += 1;
+        }
+
+        emit PlayerJoined(arenaId, msg.sender, a.joinedCount);
+
+        if (a.joinedCount == a.maxPlayers) {
+            a.state = GameState.Committed;
+            emit GameReady(arenaId);
+        }
+    }
+
     // ── Views ────────────────────────────────────────────────────
 
     /// @notice Semantic version of this implementation.
@@ -92,5 +171,20 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
     /// @notice Current protocol fee in basis points.
     function protocolFeeBps() external view returns (uint16) {
         return _s().protocolFeeBps;
+    }
+
+    /// @notice Full arena record.
+    function getArena(uint256 arenaId) external view returns (Arena memory) {
+        return _s().arenas[arenaId];
+    }
+
+    /// @notice Ordered list of players who have committed to an arena.
+    function getPlayers(uint256 arenaId) external view returns (address[] memory) {
+        return _s().arenaPlayers[arenaId];
+    }
+
+    /// @notice A player's committed board hash for an arena (0 if not joined).
+    function boardCommitOf(uint256 arenaId, address player) external view returns (bytes32) {
+        return _s().boardCommit[arenaId][player];
     }
 }
