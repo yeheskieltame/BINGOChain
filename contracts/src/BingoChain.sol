@@ -32,7 +32,8 @@ import {
     RevealWindowOpen,
     InvalidBoard,
     NothingToWithdraw,
-    TransferFailed
+    TransferFailed,
+    CancelNotAllowed
 } from "./types/GameTypes.sol";
 import { CommitLib } from "./libraries/CommitLib.sol";
 import { BoardLib } from "./libraries/BoardLib.sol";
@@ -117,6 +118,9 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
     uint8 public constant MAX_NUMBER = 25;
     /// @notice Time players have to reveal once the reveal phase opens.
     uint64 public constant REVEAL_WINDOW = 1 days;
+    /// @notice After this long without filling, a Created lobby can be cancelled
+    ///         by anyone (the creator can cancel at any time).
+    uint64 public constant JOIN_WINDOW = 1 days;
 
     // ── Game events ──────────────────────────────────────────────
 
@@ -126,6 +130,8 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
     event PlayerJoined(uint256 indexed arenaId, address indexed player, uint8 joinedCount);
     /// @notice All seats filled — the arena is sealed and ready to play.
     event GameReady(uint256 indexed arenaId);
+    /// @notice A lobby that never filled was cancelled; stakes refunded.
+    event ArenaCancelled(uint256 indexed arenaId, uint8 refunded);
     /// @notice A number was called and recorded onchain.
     event NumberCalled(uint256 indexed arenaId, address indexed caller, uint8 number, uint8 callIndex);
     /// @notice The reveal phase opened (BINGO claimed or all 25 numbers called).
@@ -159,6 +165,7 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         a.stake = stake;
         a.maxPlayers = maxPlayers;
         a.state = GameState.Created;
+        a.createdAt = uint64(block.timestamp);
 
         emit ArenaCreated(arenaId, msg.sender, stake, maxPlayers);
     }
@@ -190,6 +197,30 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
             a.state = GameState.Committed;
             emit GameReady(arenaId);
         }
+    }
+
+    /// @notice Cancel a lobby that is still in `Created` (never filled) and refund
+    ///         every joined player their stake (no fee). The creator may cancel at
+    ///         any time; anyone may cancel once the join window has elapsed, so
+    ///         stakes can never be stranded in a lobby that fails to fill.
+    function cancelArena(uint256 arenaId) external nonReentrant {
+        CoreStorage storage s = _s();
+        Arena storage a = s.arenas[arenaId];
+        if (a.creator == address(0)) revert ArenaNotFound(arenaId);
+        if (a.state != GameState.Created) revert WrongState(arenaId, GameState.Created, a.state);
+        if (msg.sender != a.creator && block.timestamp <= uint256(a.createdAt) + JOIN_WINDOW) {
+            revert CancelNotAllowed();
+        }
+
+        a.state = GameState.Cancelled;
+
+        address[] memory players = s.arenaPlayers[arenaId];
+        uint256 stake = a.stake;
+        for (uint256 i = 0; i < players.length; i++) {
+            s.earnings[players[i]] += stake; // full refund, pull pattern
+        }
+
+        emit ArenaCancelled(arenaId, uint8(players.length));
     }
 
     /// @notice Call a number on your turn. Each number (1..25) may be called once;
