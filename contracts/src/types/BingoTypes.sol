@@ -9,12 +9,14 @@ pragma solidity ^0.8.24;
 
 /// @notice Lifecycle state of a single BINGO arena.
 ///         Created → Committed → Playing → Revealing → Settled
+///         (or Created → Cancelled if a lobby never fills)
 enum GameState {
     Created, // arena open, parameters set, accepting players
     Committed, // all players joined, stakes locked, board hashes submitted
     Playing, // turn-based number calling, each call recorded onchain
     Revealing, // BINGO claimed or 25 calls reached; players reveal boards
-    Settled // winner verified, payout and protocol fee distributed
+    Settled, // winner verified, payout and protocol fee distributed
+    Cancelled // lobby never filled; stakes refunded
 }
 
 // ── Errors ───────────────────────────────────────────────────────────
