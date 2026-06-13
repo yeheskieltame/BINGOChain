@@ -55,6 +55,10 @@ error CommitMismatch();
 error AlreadyRevealed();
 /// @dev The reveal window has closed.
 error RevealWindowClosed();
+/// @dev The reveal window is still open and not all players have revealed.
+error RevealWindowOpen();
+/// @dev A native CELO transfer failed.
+error TransferFailed();
 /// @dev Revealed board is not a valid permutation of 1..25.
 error InvalidBoard();
 /// @dev No funds available to withdraw.

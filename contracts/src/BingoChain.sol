@@ -27,10 +27,14 @@ import {
     CommitMismatch,
     AlreadyRevealed,
     RevealWindowClosed,
-    InvalidBoard
+    RevealWindowOpen,
+    InvalidBoard,
+    NothingToWithdraw,
+    TransferFailed
 } from "./types/GameTypes.sol";
 import { CommitLib } from "./libraries/CommitLib.sol";
 import { BoardLib } from "./libraries/BoardLib.sol";
+import { LineLib } from "./libraries/LineLib.sol";
 
 /// @title BingoChain
 /// @notice Strategic onchain bingo on Celo. Players commit a sealed 5×5 board,
@@ -126,6 +130,12 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
     event BingoClaimed(uint256 indexed arenaId, address indexed claimer, uint8 atCallIndex);
     /// @notice A player revealed their board (hash verified, permutation valid).
     event BoardRevealed(uint256 indexed arenaId, address indexed player);
+    /// @notice An arena was settled: prize split among winners, fee to treasury.
+    event ArenaSettled(uint256 indexed arenaId, uint256 prizePool, uint256 fee, uint8 winnerCount);
+    /// @notice A winner was credited their share (claim via {withdraw}).
+    event WinnerPaid(uint256 indexed arenaId, address indexed winner, uint256 amount);
+    /// @notice Funds withdrawn from the pull-payment balance.
+    event Withdrawn(address indexed account, uint256 amount);
 
     // ── Game: arena lifecycle ────────────────────────────────────
 
@@ -255,6 +265,126 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         emit BoardRevealed(arenaId, msg.sender);
     }
 
+    /// @notice Settle an arena: determine the winner(s) by replaying the recorded
+    ///         call sequence against revealed boards, then split the prize.
+    /// @dev Callable once the reveal window has closed, or earlier if every player
+    ///      has revealed. Winner = the player(s) who reach 5 lines at the earliest
+    ///      call index; if no one does, the player(s) with the most completed lines
+    ///      at the final state. Players who did not reveal forfeit (their stake
+    ///      stays in the pot for the winner). Payouts use the pull pattern.
+    function settle(uint256 arenaId) external whenNotPaused nonReentrant {
+        CoreStorage storage s = _s();
+        Arena storage a = s.arenas[arenaId];
+        if (a.creator == address(0)) revert ArenaNotFound(arenaId);
+        if (a.state != GameState.Revealing) revert WrongState(arenaId, GameState.Revealing, a.state);
+
+        address[] memory players = s.arenaPlayers[arenaId];
+        uint8[] memory calls = s.callSequence[arenaId];
+        uint256 n = players.length;
+
+        // Per-player replay results.
+        uint16[] memory idxs = new uint16[](n);
+        bool[] memory achieved = new bool[](n);
+        uint8[] memory lines = new uint8[](n);
+        uint256 revealedCount;
+        uint16 bestIdx = type(uint16).max;
+
+        for (uint256 i = 0; i < n; i++) {
+            if (!s.hasRevealed[arenaId][players[i]]) continue;
+            revealedCount++;
+            uint8[25] memory board = s.revealedBoard[arenaId][players[i]];
+            (uint16 idx, bool ok) = _bingoIndex(board, calls);
+            idxs[i] = idx;
+            achieved[i] = ok;
+            lines[i] = LineLib.countCompletedLines(BoardLib.marks(board, a.calledMask));
+            if (ok && idx < bestIdx) bestIdx = idx;
+        }
+
+        // Finality: window closed, or everyone already revealed.
+        if (block.timestamp <= a.revealDeadline && revealedCount != n) revert RevealWindowOpen();
+
+        bool bingoHappened = bestIdx != type(uint16).max;
+        uint8 bestLines;
+        if (!bingoHappened) {
+            for (uint256 i = 0; i < n; i++) {
+                if (s.hasRevealed[arenaId][players[i]] && lines[i] > bestLines) bestLines = lines[i];
+            }
+        }
+
+        uint256 winnerCount;
+        for (uint256 i = 0; i < n; i++) {
+            if (!s.hasRevealed[arenaId][players[i]]) continue;
+            if (bingoHappened ? (achieved[i] && idxs[i] == bestIdx) : (lines[i] == bestLines)) winnerCount++;
+        }
+
+        a.state = GameState.Settled;
+
+        uint256 totalStake = uint256(a.stake) * n;
+        uint256 fee = (totalStake * s.protocolFeeBps) / 10_000;
+        uint256 prizePool = totalStake - fee;
+
+        // No one revealed → pot goes to the treasury (nothing stranded).
+        if (winnerCount == 0) {
+            s.earnings[s.treasury] += totalStake;
+            emit ArenaSettled(arenaId, 0, totalStake, 0);
+            return;
+        }
+
+        uint256 share = prizePool / winnerCount;
+        uint256 remainder = prizePool - share * winnerCount;
+        for (uint256 i = 0; i < n; i++) {
+            if (!s.hasRevealed[arenaId][players[i]]) continue;
+            bool isWinner = bingoHappened ? (achieved[i] && idxs[i] == bestIdx) : (lines[i] == bestLines);
+            if (isWinner) {
+                s.earnings[players[i]] += share;
+                emit WinnerPaid(arenaId, players[i], share);
+            }
+        }
+        // Fee plus any rounding dust accrues to the treasury so the pot reconciles exactly.
+        s.earnings[s.treasury] += fee + remainder;
+
+        emit ArenaSettled(arenaId, prizePool, fee, uint8(winnerCount));
+    }
+
+    /// @notice Withdraw your accumulated winnings (pull pattern).
+    function withdraw() external nonReentrant {
+        CoreStorage storage s = _s();
+        uint256 amount = s.earnings[msg.sender];
+        if (amount == 0) revert NothingToWithdraw();
+        s.earnings[msg.sender] = 0;
+
+        (bool ok,) = payable(msg.sender).call{ value: amount }("");
+        if (!ok) revert TransferFailed();
+
+        emit Withdrawn(msg.sender, amount);
+    }
+
+    /// @dev Earliest 1-based call index at which `board` reaches ≥5 completed
+    ///      lines over the ordered `calls`. `achieved` is false if it never does.
+    ///      `board` is assumed valid (checked at reveal), so every number 1..25
+    ///      maps to exactly one cell.
+    function _bingoIndex(uint8[25] memory board, uint8[] memory calls)
+        internal
+        pure
+        returns (uint16 index, bool achieved)
+    {
+        uint8[26] memory pos; // pos[number] = cell position + 1 (0 = absent)
+        for (uint8 p = 0; p < 25; p++) {
+            pos[board[p]] = p + 1;
+        }
+        uint32 marked;
+        uint256 len = calls.length;
+        for (uint256 k = 0; k < len; k++) {
+            uint8 cell = pos[calls[k]];
+            if (cell == 0) continue; // number not on this board (shouldn't happen for valid boards)
+            marked |= uint32(1) << (cell - 1);
+            if (LineLib.countCompletedLines(marked) >= 5) {
+                return (uint16(k + 1), true);
+            }
+        }
+        return (0, false);
+    }
+
     // ── Views ────────────────────────────────────────────────────
 
     /// @notice Semantic version of this implementation.
@@ -300,5 +430,10 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
     /// @notice A player's revealed board (all zeros until revealed).
     function revealedBoardOf(uint256 arenaId, address player) external view returns (uint8[25] memory) {
         return _s().revealedBoard[arenaId][player];
+    }
+
+    /// @notice Withdrawable balance for an account (winnings / treasury fees).
+    function earningsOf(address account) external view returns (uint256) {
+        return _s().earnings[account];
     }
 }
