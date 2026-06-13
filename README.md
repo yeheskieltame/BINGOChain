@@ -83,10 +83,24 @@ Created → Committed → Playing → Revealing → Settled
 
 ## Tech stack
 
-- **Contracts:** Solidity 0.8.24, Foundry, OpenZeppelin v5 (`ReentrancyGuard`, `Ownable2Step`, `Pausable`)
-- **Chain:** Celo Mainnet (sub-cent fees make per-call micro-transactions economical)
+- **Contracts:** Solidity 0.8.24, Foundry, OpenZeppelin v5 **upgradeable** — UUPS proxy (EIP-1822), `Ownable2StepUpgradeable`, `PausableUpgradeable`, EIP-7201 namespaced storage
+- **Chain:** Celo — dev/staging on **Celo Sepolia** first, then Celo Mainnet (sub-cent fees make per-call micro-transactions economical)
 - **Frontend:** MiniPay-compatible mini app (phone-number identity, no wallet setup)
 - **Settlement token:** CELO (cUSD/USDC support planned)
+
+## Architecture
+
+BINGOChain ships as a **UUPS-upgradeable** contract so the game engine can evolve
+(new game modes, fixes, gas tuning) without migrating escrowed arenas to a new
+address.
+
+- **Proxy pattern:** ERC-1967 proxy (`BingoChainProxy`) → `BingoChain` implementation. Upgrades go through `upgradeToAndCall`; `_authorizeUpgrade` is gated to the owner.
+- **Upgrade authority:** the owner is a **Safe multisig on mainnet** (single key on testnet). Because the contract custodies player stakes, this is a deliberate, documented trust trade-off — see [`SECURITY.md`](./SECURITY.md).
+- **Storage safety:** all state lives under an **EIP-7201 namespace** (`bingochain.core.v1`), so upgrades append fields without risking storage collisions. Existing fields are never reordered or retyped.
+- **Reentrancy:** OZ v5 dropped `ReentrancyGuardUpgradeable`; the guard flag lives in namespaced storage and is enforced by a local `nonReentrant` modifier.
+
+> This is an intentional change from an earlier immutable design: upgradeability is
+> gained at the cost of a trusted upgrade key, mitigated by the Safe multisig.
 
 ## Celo & MiniPay fit
 
@@ -94,6 +108,7 @@ BINGOChain is built around what Celo does best. Sub-cent fees make a game with 3
 
 ## Status & roadmap
 
+- [x] Repo scaffold: Foundry + OZ v5 upgradeable, CI (build/fmt/test/Slither), UUPS proxy skeleton
 - [ ] Core contract: commit–reveal, turn engine, bitmask call tracking
 - [ ] `estimateGasReserve(numPlayers)` view + worst-case lock from gas report
 - [ ] Reveal verification: hash check + call-sequence replay
