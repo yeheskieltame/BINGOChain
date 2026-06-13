@@ -20,10 +20,17 @@ import {
     IncorrectStake,
     AlreadyJoined,
     ArenaFull,
+    NotAPlayer,
     NotYourTurn,
     NumberOutOfRange,
-    NumberAlreadyCalled
+    NumberAlreadyCalled,
+    CommitMismatch,
+    AlreadyRevealed,
+    RevealWindowClosed,
+    InvalidBoard
 } from "./types/GameTypes.sol";
+import { CommitLib } from "./libraries/CommitLib.sol";
+import { BoardLib } from "./libraries/BoardLib.sol";
 
 /// @title BingoChain
 /// @notice Strategic onchain bingo on Celo. Players commit a sealed 5×5 board,
@@ -115,6 +122,10 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
     event NumberCalled(uint256 indexed arenaId, address indexed caller, uint8 number, uint8 callIndex);
     /// @notice The reveal phase opened (BINGO claimed or all 25 numbers called).
     event RevealPhaseStarted(uint256 indexed arenaId, uint64 revealDeadline);
+    /// @notice A player claimed BINGO, freezing the call sequence for verification.
+    event BingoClaimed(uint256 indexed arenaId, address indexed claimer, uint8 atCallIndex);
+    /// @notice A player revealed their board (hash verified, permutation valid).
+    event BoardRevealed(uint256 indexed arenaId, address indexed player);
 
     // ── Game: arena lifecycle ────────────────────────────────────
 
@@ -208,6 +219,42 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         }
     }
 
+    /// @notice Claim BINGO. Freezes the call sequence and opens the reveal phase;
+    ///         the true winner is determined by replay in {settle}, so a premature
+    ///         or false claim simply fails to win.
+    function claimBingo(uint256 arenaId) external whenNotPaused nonReentrant {
+        CoreStorage storage s = _s();
+        Arena storage a = s.arenas[arenaId];
+        if (a.creator == address(0)) revert ArenaNotFound(arenaId);
+        if (a.state != GameState.Playing) revert WrongState(arenaId, GameState.Playing, a.state);
+        if (!s.hasJoined[arenaId][msg.sender]) revert NotAPlayer();
+
+        a.state = GameState.Revealing;
+        a.revealDeadline = uint64(block.timestamp) + REVEAL_WINDOW;
+
+        emit BingoClaimed(arenaId, msg.sender, a.callCount);
+        emit RevealPhaseStarted(arenaId, a.revealDeadline);
+    }
+
+    /// @notice Reveal your sealed board so the winner can be verified. The board
+    ///         must hash to your commitment and be a valid permutation of 1..25.
+    function revealBoard(uint256 arenaId, uint8[25] calldata board, bytes32 salt) external whenNotPaused nonReentrant {
+        CoreStorage storage s = _s();
+        Arena storage a = s.arenas[arenaId];
+        if (a.creator == address(0)) revert ArenaNotFound(arenaId);
+        if (a.state != GameState.Revealing) revert WrongState(arenaId, GameState.Revealing, a.state);
+        if (block.timestamp > a.revealDeadline) revert RevealWindowClosed();
+        if (!s.hasJoined[arenaId][msg.sender]) revert NotAPlayer();
+        if (s.hasRevealed[arenaId][msg.sender]) revert AlreadyRevealed();
+        if (!CommitLib.verify(s.boardCommit[arenaId][msg.sender], board, salt)) revert CommitMismatch();
+        if (!BoardLib.isValid(board)) revert InvalidBoard();
+
+        s.revealedBoard[arenaId][msg.sender] = board;
+        s.hasRevealed[arenaId][msg.sender] = true;
+
+        emit BoardRevealed(arenaId, msg.sender);
+    }
+
     // ── Views ────────────────────────────────────────────────────
 
     /// @notice Semantic version of this implementation.
@@ -243,5 +290,15 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
     /// @notice The numbers called so far, in call order.
     function getCallSequence(uint256 arenaId) external view returns (uint8[] memory) {
         return _s().callSequence[arenaId];
+    }
+
+    /// @notice Whether a player has revealed their board for an arena.
+    function hasRevealed(uint256 arenaId, address player) external view returns (bool) {
+        return _s().hasRevealed[arenaId][player];
+    }
+
+    /// @notice A player's revealed board (all zeros until revealed).
+    function revealedBoardOf(uint256 arenaId, address player) external view returns (uint8[25] memory) {
+        return _s().revealedBoard[arenaId][player];
     }
 }
