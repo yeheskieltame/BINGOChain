@@ -19,7 +19,10 @@ import {
     StakeTooLow,
     IncorrectStake,
     AlreadyJoined,
-    ArenaFull
+    ArenaFull,
+    NotYourTurn,
+    NumberOutOfRange,
+    NumberAlreadyCalled
 } from "./types/GameTypes.sol";
 
 /// @title BingoChain
@@ -95,6 +98,10 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
     uint8 public constant MAX_PLAYERS = 6;
     /// @notice Minimum entry stake per player (1 CELO).
     uint256 public constant MIN_STAKE = 1 ether;
+    /// @notice Highest callable number (board is 1..25).
+    uint8 public constant MAX_NUMBER = 25;
+    /// @notice Time players have to reveal once the reveal phase opens.
+    uint64 public constant REVEAL_WINDOW = 1 days;
 
     // ── Game events ──────────────────────────────────────────────
 
@@ -104,6 +111,10 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
     event PlayerJoined(uint256 indexed arenaId, address indexed player, uint8 joinedCount);
     /// @notice All seats filled — the arena is sealed and ready to play.
     event GameReady(uint256 indexed arenaId);
+    /// @notice A number was called and recorded onchain.
+    event NumberCalled(uint256 indexed arenaId, address indexed caller, uint8 number, uint8 callIndex);
+    /// @notice The reveal phase opened (BINGO claimed or all 25 numbers called).
+    event RevealPhaseStarted(uint256 indexed arenaId, uint64 revealDeadline);
 
     // ── Game: arena lifecycle ────────────────────────────────────
 
@@ -156,6 +167,47 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         }
     }
 
+    /// @notice Call a number on your turn. Each number (1..25) may be called once;
+    ///         the call is recorded onchain and marks that cell on every board.
+    /// @dev The first call on a sealed (Committed) arena opens play. When all 25
+    ///      numbers have been called with no BINGO claim, the reveal phase opens.
+    function callNumber(uint256 arenaId, uint8 number) external whenNotPaused nonReentrant {
+        CoreStorage storage s = _s();
+        Arena storage a = s.arenas[arenaId];
+        if (a.creator == address(0)) revert ArenaNotFound(arenaId);
+
+        // First call transitions a sealed arena into active play.
+        if (a.state == GameState.Committed) {
+            a.state = GameState.Playing;
+        }
+        if (a.state != GameState.Playing) revert WrongState(arenaId, GameState.Playing, a.state);
+
+        if (number < 1 || number > MAX_NUMBER) revert NumberOutOfRange(number);
+        uint32 bit = uint32(1) << (number - 1);
+        if ((a.calledMask & bit) != 0) revert NumberAlreadyCalled(number);
+
+        address[] storage players = s.arenaPlayers[arenaId];
+        if (msg.sender != players[a.turnIndex]) revert NotYourTurn();
+
+        a.calledMask |= bit;
+        s.callSequence[arenaId].push(number);
+        uint8 callIndex = a.callCount; // 0-based index of this call
+        unchecked {
+            a.callCount += 1;
+            // Advance the turn round-robin over the player list.
+            a.turnIndex = uint8((uint256(a.turnIndex) + 1) % players.length);
+        }
+
+        emit NumberCalled(arenaId, msg.sender, number, callIndex);
+
+        // All 25 numbers exhausted with no BINGO claim → open reveal.
+        if (a.callCount == MAX_NUMBER) {
+            a.state = GameState.Revealing;
+            a.revealDeadline = uint64(block.timestamp) + REVEAL_WINDOW;
+            emit RevealPhaseStarted(arenaId, a.revealDeadline);
+        }
+    }
+
     // ── Views ────────────────────────────────────────────────────
 
     /// @notice Semantic version of this implementation.
@@ -186,5 +238,10 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
     /// @notice A player's committed board hash for an arena (0 if not joined).
     function boardCommitOf(uint256 arenaId, address player) external view returns (bytes32) {
         return _s().boardCommit[arenaId][player];
+    }
+
+    /// @notice The numbers called so far, in call order.
+    function getCallSequence(uint256 arenaId) external view returns (uint8[] memory) {
+        return _s().callSequence[arenaId];
     }
 }
