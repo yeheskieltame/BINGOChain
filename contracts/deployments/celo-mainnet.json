@@ -1,0 +1,21 @@
+{
+  "network": "celo-mainnet",
+  "chainId": 42220,
+  "version": "1.1.0",
+  "contracts": {
+    "BingoChainProxy": "0x8bE7c07CCF9FF515d82D4c36aB4EB937941432f1",
+    "BingoChainImplementation": "0x377490a98b99Ff644B9e2878f7791Bc1AA5a5C3E"
+  },
+  "init": {
+    "owner": "0xe9Fc48f315fD4E989637fAcC29AaF2717E19f7F0",
+    "treasury": "0xCC0cCac212999612BdDdEb607B33CC1a46F8A401",
+    "protocolFeeBps": 100
+  },
+  "deployer": "0x77c4a1cD22005b67Eb9CcEaE7E9577188d7Bca82",
+  "explorer": {
+    "proxy": "https://celoscan.io/address/0x8bE7c07CCF9FF515d82D4c36aB4EB937941432f1#code",
+    "implementation": "https://celoscan.io/address/0x377490a98b99Ff644B9e2878f7791Bc1AA5a5C3E#code"
+  },
+  "verified": true,
+  "notes": "Owner is the operator's Safe multisig (threshold 2) — upgrade + admin authority. MIN_STAKE 1 CELO, 1% protocol fee."
+}
