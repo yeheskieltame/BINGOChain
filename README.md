@@ -84,7 +84,7 @@ Created → Committed → Playing → Revealing → Settled
 ## Tech stack
 
 - **Contracts:** Solidity 0.8.24, Foundry, OpenZeppelin v5 **upgradeable** — UUPS proxy (EIP-1822), `Ownable2StepUpgradeable`, `PausableUpgradeable`, EIP-7201 namespaced storage
-- **Chain:** Celo — dev/staging on **Celo Sepolia** first, then Celo Mainnet (sub-cent fees make per-call micro-transactions economical)
+- **Chain:** Celo Mainnet — mainnet-only by design (sub-cent fees make per-call micro-transactions economical; local testing uses an anvil mainnet fork)
 - **Frontend:** MiniPay-compatible mini app (phone-number identity, no wallet setup)
 - **Settlement token:** CELO (cUSD/USDC support planned)
 
@@ -113,7 +113,7 @@ BINGOChain ships as a **UUPS-upgradeable** contract so the game engine can evolv
 address.
 
 - **Proxy pattern:** ERC-1967 proxy (`BingoChainProxy`) → `BingoChain` implementation. Upgrades go through `upgradeToAndCall`; `_authorizeUpgrade` is gated to the owner.
-- **Upgrade authority:** the owner is a **Safe multisig on mainnet** (single key on testnet). Because the contract custodies player stakes, this is a deliberate, documented trust trade-off — see [`SECURITY.md`](./SECURITY.md).
+- **Upgrade authority:** the owner is a **Safe multisig** (threshold 2). Because the contract custodies player stakes, this is a deliberate, documented trust trade-off — see [`SECURITY.md`](./SECURITY.md).
 - **Storage safety:** all state lives under an **EIP-7201 namespace** (`bingochain.core.v1`), so upgrades append fields without risking storage collisions. Existing fields are never reordered or retyped.
 - **Reentrancy:** OZ v5 dropped `ReentrancyGuardUpgradeable`; the guard flag lives in namespaced storage and is enforced by a local `nonReentrant` modifier.
 
@@ -130,7 +130,6 @@ BINGOChain is built around what Celo does best. Sub-cent fees make a game with 3
 - [x] Core contract: commit–reveal, turn engine, bitmask call tracking
 - [x] Reveal verification: hash check + call-sequence replay (`settle`)
 - [x] Reclaim (`cancelArena`) + admin (fee/treasury/pause/rescue) + security review (Slither, 0 vuln)
-- [x] **Live on Celo Sepolia** (verified) — proxy [`0xa21424B1…89A6`](https://sepolia.celoscan.io/address/0xa21424B1F8c08e3d437942110081ef9F1b7589A6#code)
 - [x] **Live on Celo Mainnet** (verified) — proxy [`0x8bE7c07C…32f1`](https://celoscan.io/address/0x8bE7c07CCF9FF515d82D4c36aB4EB937941432f1#code), owner = Safe multisig
 - [x] Foundry unit + fuzz + invariant suite (86 tests; 16k-call money-conservation invariants)
 - [ ] `estimateGasReserve(numPlayers)` view + worst-case lock from gas report

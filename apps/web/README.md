@@ -1,12 +1,12 @@
 # BINGOChain Web (MiniPay mini app)
 
 A **MiniPay-compatible** Next.js mini app for BINGOChain — connects to the live
-contract on Celo (mainnet by default, Sepolia for dev).
+contract on **Celo mainnet** (this project is mainnet-only).
 
 ## Stack
 
 - Next.js 15 (App Router) + React 19
-- wagmi + viem (Celo + Celo Sepolia)
+- wagmi + viem (Celo mainnet)
 - Tailwind CSS
 - MiniPay auto-connect (`hooks/useMiniPay.ts`)
 
@@ -15,9 +15,6 @@ contract on Celo (mainnet by default, Sepolia for dev).
 ```bash
 pnpm install
 pnpm dev          # http://localhost:3000
-
-# target Sepolia instead of mainnet:
-NEXT_PUBLIC_CHAIN_ID=11142220 pnpm dev
 ```
 
 Contract addresses live in [`lib/bingo.ts`](./lib/bingo.ts) (sourced from
