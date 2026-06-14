@@ -10,7 +10,7 @@ security seriously and welcome responsible disclosure.
 - Commit–reveal sealing, winner verification (call-sequence replay), and payout math
 - Escrow accounting: stakes, gas reserve, protocol fee, and the pull-payment withdrawal path
 
-Out of scope: the testnet deployment keys, frontend, and third-party dependencies
+Out of scope: deployment keys, the frontend, and third-party dependencies
 (report those upstream).
 
 ## Reporting a vulnerability
@@ -32,9 +32,8 @@ Foundry test if possible, and the potential impact.
 ## Trust model & known trade-offs
 
 - **Upgradeability.** The contract is UUPS-upgradeable. Upgrade authority is gated
-  to the owner — a Safe multisig on mainnet — which is a deliberate centralization
-  vector documented in the architecture notes. Single-key ownership on testnet is
-  expected.
+  to the owner — a Safe multisig (threshold 2) — which is a deliberate centralization
+  vector documented in the architecture notes.
 - **No onchain randomness.** Numbers are chosen by players in turn, so there is no
   VRF/oracle to attack. Fairness rests on commit–reveal and deterministic verification.
 - **Reveal liveness.** A player who refuses to reveal within the window forfeits;

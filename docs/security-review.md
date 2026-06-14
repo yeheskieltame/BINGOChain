@@ -1,9 +1,9 @@
 # Security review — BingoChain
 
-Pre-mainnet review of the BingoChain contract family. The contract custodies player
-stakes, so the bar is high. This complements the test suite (86 tests: unit, fuzz,
+Review of the BingoChain contract family. The contract custodies player stakes, so
+the bar is high. Correctness rests on the test suite (86 tests: unit, fuzz,
 integration scenarios, and money-conservation invariants over 16,384 random
-call-sequences) and the [live Sepolia run](./live-test-sepolia.md).
+call-sequences), which is network-independent.
 
 ## Tooling
 
@@ -44,7 +44,6 @@ Remaining findings reviewed and **accepted as safe / by-design**:
 
 ## Conclusion
 
-No vulnerabilities found. All accounting is conserved under fuzzing and verified
-live on Sepolia. Outstanding items before a mainnet deploy are **process**, not
-code: owner must be a Safe multisig, and a final independent audit is recommended
-given the contract holds funds.
+No vulnerabilities found. All accounting is conserved under fuzzing. The contract
+is live on Celo mainnet with a Safe multisig (threshold 2) as owner. A final
+independent audit is recommended given the contract holds funds.

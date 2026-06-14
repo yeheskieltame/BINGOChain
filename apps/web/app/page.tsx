@@ -1,7 +1,7 @@
 "use client";
 
 import { useAccount, useConnect, useReadContract } from "wagmi";
-import { bingoAbi, bingoAddress, DEFAULT_CHAIN_ID } from "../lib/bingo";
+import { bingoAbi, BINGO_ADDRESS, CHAIN_ID } from "../lib/bingo";
 import { useMiniPay } from "../hooks/useMiniPay";
 
 export default function Home() {
@@ -11,9 +11,9 @@ export default function Home() {
 
   const { data: version } = useReadContract({
     abi: bingoAbi,
-    address: bingoAddress(DEFAULT_CHAIN_ID),
+    address: BINGO_ADDRESS,
     functionName: "version",
-    chainId: DEFAULT_CHAIN_ID,
+    chainId: CHAIN_ID,
   });
 
   return (
@@ -57,7 +57,7 @@ export default function Home() {
       </section>
 
       <footer className="mt-auto text-center text-xs text-neutral-600">
-        Contract v{version ?? "…"} · Celo {DEFAULT_CHAIN_ID === 42_220 ? "Mainnet" : "Sepolia"}
+        Contract v{version ?? "…"} · Celo Mainnet
       </footer>
     </main>
   );
