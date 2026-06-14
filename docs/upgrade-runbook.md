@@ -1,44 +1,38 @@
 # Upgrade runbook — Celo Mainnet
 
-The mainnet proxy owner is a **Safe multisig (threshold 2)**, so upgrades are
-executed through the Safe, not from a single key.
+The mainnet proxy owner is a **Safe multisig (threshold 2)**, so upgrades and
+admin actions are executed through the Safe.
 
-## Pending: comment-cleanup upgrade (v1.1.0, clean source)
+- Proxy (never changes): `0x8bE7c07CCF9FF515d82D4c36aB4EB937941432f1`
+- Owner Safe: `0xe9Fc48f315fD4E989637fAcC29AaF2717E19f7F0`
 
-A new implementation with identical runtime bytecode (only comments/source tidied)
-is deployed and Celoscan-verified:
+History: v1.0.0 → v1.1.0 (clean source, executed) live impl `0x1b28f5F57F0e9d879b66C3e704Ee2203F1406181`.
 
-| | |
-|---|---|
-| Proxy (unchanged) | `0x8bE7c07CCF9FF515d82D4c36aB4EB937941432f1` |
-| New implementation | [`0x1b28f5F57F0e9d879b66C3e704Ee2203F1406181`](https://celoscan.io/address/0x1b28f5F57F0e9d879b66C3e704Ee2203F1406181#code) |
-| Current implementation | `0x377490a98b99Ff644B9e2878f7791Bc1AA5a5C3E` |
+## Pending: v1.2.0 multi-token + enable tokens
 
-Runtime bytecode is byte-identical to the current implementation except the
-trailing metadata hash — behavior is provably unchanged (86 tests + invariants pass).
+New implementation (Celoscan-verified): [`0xe0d154f708742005Ee9279A3357A1f26267ccB6c`](https://celoscan.io/address/0xe0d154f708742005Ee9279A3357A1f26267ccB6c#code).
+Adds ERC20 settlement (CELO, cUSD, USDC, USDT). Storage is append-only — upgrade-safe.
 
-### Execute via Safe (https://app.safe.global)
+Execute as **one Safe batch** (Transaction Builder → 5 transactions, all **To** the
+proxy, **value 0**). MultiSend runs them in order, so the upgrade lands before the
+`allowToken` calls hit the new implementation:
 
-New Transaction → Transaction Builder (or Contract interaction):
+| # | Action | Raw calldata |
+|---|--------|--------------|
+| 1 | `upgradeToAndCall` → v1.2.0 | `0x4f1ef286000000000000000000000000e0d154f708742005ee9279a3357a1f26267ccb6c00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000` |
+| 2 | `allowToken(CELO, 1e18)` | `0xa147c6c6000000000000000000000000471ece3750da237f93b8e339c536989b8978a4380000000000000000000000000000000000000000000000000de0b6b3a7640000` |
+| 3 | `allowToken(cUSD, 1e18)` | `0xa147c6c6000000000000000000000000765de816845861e75a25fca122bb6898b8b1282a0000000000000000000000000000000000000000000000000de0b6b3a7640000` |
+| 4 | `allowToken(USDC, 1e6)` | `0xa147c6c6000000000000000000000000ceba9300f2b948710d2653dd7b07f33a8b32118c00000000000000000000000000000000000000000000000000000000000f4240` |
+| 5 | `allowToken(USDT, 1e6)` | `0xa147c6c600000000000000000000000048065fbbe25f71c9282ddf5e1cd6d6a887483d5e00000000000000000000000000000000000000000000000000000000000f4240` |
 
-- **To:** `0x8bE7c07CCF9FF515d82D4c36aB4EB937941432f1` (the proxy)
-- **Value:** 0
-- **Method:** `upgradeToAndCall(address implementation, bytes data)`
-  - `implementation` = `0x1b28f5F57F0e9d879b66C3e704Ee2203F1406181`
-  - `data` = `0x` (empty — no re-initialization)
+Tokens (Celo mainnet): CELO `0x471EcE37…a438`, cUSD `0x765DE816…282a`, USDC
+`0xcebA9300…118C`, USDT `0x48065fbB…3D5e`. Min stake = 1 unit each.
 
-Or paste the raw calldata directly:
-
-```
-0x4f1ef2860000000000000000000000001b28f5f57f0e9d879b66c3e704ee2203f140618100000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000
-```
-
-Collect the second signature and execute. Afterwards `version()` still returns
-`1.1.0` and Celoscan shows the clean source for the proxy's implementation.
+After the batch: `version()` = `1.2.0`, `isTokenAllowed(token)` = true for all four.
 
 ## General upgrade procedure
 
 1. `cd contracts && forge test` — full suite green.
-2. Confirm storage layout is append-only (never reorder/retype `CoreStorage`).
-3. Deploy the new impl: `forge create src/BingoChain.sol:BingoChain --rpc-url $CELO_MAINNET_RPC --private-key $DEPLOYER_PRIVATE_KEY --broadcast --verify`.
-4. Submit `upgradeToAndCall(newImpl, data)` to the proxy via the Safe; collect signatures; execute.
+2. Storage must be append-only (never reorder/retype `CoreStorage` or `Arena`).
+3. `forge create src/BingoChain.sol:BingoChain --rpc-url $CELO_MAINNET_RPC --private-key $DEPLOYER_PRIVATE_KEY --broadcast --verify` (add `--gas-price 220000000000` — forge over-estimates).
+4. Submit `upgradeToAndCall(newImpl, "0x")` to the proxy via the Safe; collect signatures; execute.

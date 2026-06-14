@@ -4,7 +4,7 @@
   "version": "1.1.0",
   "contracts": {
     "BingoChainProxy": "0x8bE7c07CCF9FF515d82D4c36aB4EB937941432f1",
-    "BingoChainImplementation": "0x377490a98b99Ff644B9e2878f7791Bc1AA5a5C3E"
+    "BingoChainImplementation": "0x1b28f5F57F0e9d879b66C3e704Ee2203F1406181"
   },
   "init": {
     "owner": "0xe9Fc48f315fD4E989637fAcC29AaF2717E19f7F0",
@@ -12,17 +12,26 @@
     "protocolFeeBps": 100
   },
   "deployer": "0x77c4a1cD22005b67Eb9CcEaE7E9577188d7Bca82",
+  "implementationHistory": [
+    "0x377490a98b99Ff644B9e2878f7791Bc1AA5a5C3E (v1.1.0 initial)",
+    "0x1b28f5F57F0e9d879b66C3e704Ee2203F1406181 (v1.1.0 clean source — ACTIVE)"
+  ],
   "explorer": {
-    "proxy": "https://celoscan.io/address/0x8bE7c07CCF9FF515d82D4c36aB4EB937941432f1#code",
-    "implementation": "https://celoscan.io/address/0x377490a98b99Ff644B9e2878f7791Bc1AA5a5C3E#code"
+    "proxy": "https://celoscan.io/address/0x8bE7c07CCF9FF515d82D4c36aB4EB937941432f1#code"
   },
   "verified": true,
   "pendingUpgrade": {
-    "cleanImplementation": "0x1b28f5F57F0e9d879b66C3e704Ee2203F1406181",
-    "reason": "Identical runtime bytecode, clean (comment-tidied) verified source",
-    "safeCalldata": "0x4f1ef2860000000000000000000000001b28f5f57f0e9d879b66c3e704ee2203f140618100000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000",
-    "safeTx": "to=proxy, value=0, data=upgradeToAndCall(0x1b28f5F5…6181, 0x) — execute via Safe (threshold 2)",
-    "note": "See docs/upgrade-runbook.md"
+    "version": "1.2.0",
+    "implementation": "0xe0d154f708742005Ee9279A3357A1f26267ccB6c",
+    "reason": "Multi-token settlement (CELO, cUSD, USDC, USDT)",
+    "safeBatch": "5 tx to proxy: upgradeToAndCall(0xe0d154…) + allowToken x4 (CELO/cUSD/USDC/USDT)",
+    "note": "See docs/upgrade-runbook.md for the full calldata"
   },
-  "notes": "Owner is the operator's Safe multisig (threshold 2) — upgrade + admin authority. MIN_STAKE 1 CELO, 1% protocol fee."
+  "tokens": {
+    "CELO": "0x471EcE3750Da237f93B8E339c536989b8978a438",
+    "cUSD": "0x765DE816845861e75A25fCA122bb6898B8B1282a",
+    "USDC": "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",
+    "USDT": "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e"
+  },
+  "notes": "Owner is the operator's Safe multisig (threshold 2). 1% protocol fee. v1.2.0 (multi-token) pending Safe batch."
 }
