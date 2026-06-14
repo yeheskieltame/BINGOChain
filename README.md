@@ -129,14 +129,13 @@ BINGOChain is built around what Celo does best. Sub-cent fees make a game with 3
 - [x] Repo scaffold: Foundry + OZ v5 upgradeable, CI (build/fmt/test/Slither), UUPS proxy skeleton
 - [x] Core contract: commit–reveal, turn engine, bitmask call tracking
 - [x] Reveal verification: hash check + call-sequence replay (`settle`)
+- [x] Reclaim (`cancelArena`) + admin (fee/treasury/pause/rescue) + security review (Slither, 0 vuln)
 - [x] **Live on Celo Sepolia** (verified) — proxy [`0xa21424B1…89A6`](https://sepolia.celoscan.io/address/0xa21424B1F8c08e3d437942110081ef9F1b7589A6#code)
-- [x] Foundry unit + fuzz suite (61 tests) — invariant suite in progress
+- [x] **Live on Celo Mainnet** (verified) — proxy [`0x8bE7c07C…32f1`](https://celoscan.io/address/0x8bE7c07CCF9FF515d82D4c36aB4EB937941432f1#code), owner = Safe multisig
+- [x] Foundry unit + fuzz + invariant suite (86 tests; 16k-call money-conservation invariants)
 - [ ] `estimateGasReserve(numPlayers)` view + worst-case lock from gas report
-- [ ] Timeout/forfeit reclaim path + admin (fee setter, treasury timelock, rescue)
-- [ ] Security review (`/security-review` + Slither triage) before mainnet
-- [ ] Gasless relayer (reserve-reimbursed)
+- [ ] Gasless relayer (reserve-reimbursed) — Phase 2
 - [ ] MiniPay frontend (create arena, join, play, reveal)
-- [ ] Celo Mainnet deploy + Celoscan verification
 
 ## License
 
