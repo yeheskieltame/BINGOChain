@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-// OZ v5: import the full upgradeable suite from the upgradeable package so a
-// single Initializable type is inherited (the main package also ships these,
-// which would otherwise clash with the upgradeable mixins below).
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
@@ -40,28 +37,37 @@ import { BoardLib } from "./libraries/BoardLib.sol";
 import { LineLib } from "./libraries/LineLib.sol";
 
 /// @title BingoChain
-/// @notice Strategic onchain bingo on Celo. Players commit a sealed 5×5 board,
-///         call numbers in turn (recorded onchain), then reveal so the winner is
-///         verified by replaying the call sequence — cheating is provable.
-///
-/// @dev UUPS upgradeable (EIP-1822) with EIP-7201 namespaced storage. Upgrade
-///      authority is gated to the owner (a Safe multisig on mainnet). The
-///      reentrancy guard lives in CoreStorage._locked because OZ v5 dropped
-///      ReentrancyGuardUpgradeable. Game logic (commit-reveal, turn engine,
-///      payouts) is layered on in subsequent epics.
+/// @notice Strategic onchain bingo on Celo: players commit a sealed 5x5 board, call
+///         numbers in turn, then reveal so the winner is verified by replaying the
+///         recorded calls. UUPS upgradeable with EIP-7201 namespaced storage.
 contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgradeable {
     using SafeERC20 for IERC20;
 
-    /// @notice Hard ceiling on the protocol fee (5%). Defends the admin setter
-    ///         from ever configuring an abusive fee.
     uint16 public constant MAX_FEE_BPS = 500;
+    uint8 public constant MIN_PLAYERS = 2;
+    uint8 public constant MAX_PLAYERS = 6;
+    uint256 public constant MIN_STAKE = 1 ether;
+    uint8 public constant MAX_NUMBER = 25;
+    uint64 public constant REVEAL_WINDOW = 1 days;
+    uint64 public constant JOIN_WINDOW = 1 days;
 
-    /// @notice Emitted once when the proxy is initialized.
     event BingoChainInitialized(address indexed owner, address indexed treasury, uint16 protocolFeeBps);
+    event ArenaCreated(uint256 indexed arenaId, address indexed creator, uint96 stake, uint8 maxPlayers);
+    event PlayerJoined(uint256 indexed arenaId, address indexed player, uint8 joinedCount);
+    event GameReady(uint256 indexed arenaId);
+    event ArenaCancelled(uint256 indexed arenaId, uint8 refunded);
+    event NumberCalled(uint256 indexed arenaId, address indexed caller, uint8 number, uint8 callIndex);
+    event RevealPhaseStarted(uint256 indexed arenaId, uint64 revealDeadline);
+    event BingoClaimed(uint256 indexed arenaId, address indexed claimer, uint8 atCallIndex);
+    event BoardRevealed(uint256 indexed arenaId, address indexed player);
+    event ArenaSettled(uint256 indexed arenaId, uint256 prizePool, uint256 fee, uint8 winnerCount);
+    event WinnerPaid(uint256 indexed arenaId, address indexed winner, uint256 amount);
+    event Withdrawn(address indexed account, uint256 amount);
+    event ProtocolFeeUpdated(uint16 oldBps, uint16 newBps);
+    event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
+    event ERC20Rescued(address indexed token, address indexed to, uint256 amount);
 
-    // ── Modifiers ────────────────────────────────────────────────
-
-    /// @dev Reentrancy guard stored in the EIP-7201 namespace (no slot pollution).
+    /// @dev Reentrancy guard flag lives in namespaced storage (OZ v5 dropped the upgradeable guard).
     modifier nonReentrant() {
         CoreStorage storage s = _s();
         if (s._locked) revert Reentrancy();
@@ -70,29 +76,18 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         s._locked = false;
     }
 
-    // ── Constructor (implementation only) ────────────────────────
-
-    /// @dev Locks the implementation so it can never be initialized directly;
-    ///      only the proxy delegatecall path can.
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    // ── Initializer (proxy) ──────────────────────────────────────
-
-    /// @param owner_           Initial owner (Safe multisig on mainnet).
-    /// @param treasury_        Protocol fee recipient.
-    /// @param protocolFeeBps_  Protocol fee in basis points (≤ MAX_FEE_BPS).
+    /// @notice Initialize the proxy. `owner_` is a Safe multisig on mainnet.
     function initialize(address owner_, address treasury_, uint16 protocolFeeBps_) external initializer {
         if (owner_ == address(0) || treasury_ == address(0)) revert ZeroAddress();
         if (protocolFeeBps_ > MAX_FEE_BPS) revert FeeTooHigh(protocolFeeBps_);
 
-        // OZ v5: Ownable2StepUpgradeable inherits __Ownable_init(address initialOwner).
         __Ownable_init(owner_);
         __Pausable_init();
-        // No __UUPSUpgradeable_init — UUPSUpgradeable is stateless in OZ v5.
-        // No reentrancy init — the flag lives in CoreStorage.
 
         CoreStorage storage s = _s();
         s.treasury = treasury_;
@@ -101,59 +96,11 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         emit BingoChainInitialized(owner_, treasury_, protocolFeeBps_);
     }
 
-    // ── Upgrade authority ────────────────────────────────────────
-
-    /// @dev Restricts upgrades to the owner (Safe multisig on mainnet).
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
 
-    // ── Game constants ───────────────────────────────────────────
-
-    /// @notice Minimum players per arena.
-    uint8 public constant MIN_PLAYERS = 2;
-    /// @notice Maximum players per arena.
-    uint8 public constant MAX_PLAYERS = 6;
-    /// @notice Minimum entry stake per player (1 CELO).
-    uint256 public constant MIN_STAKE = 1 ether;
-    /// @notice Highest callable number (board is 1..25).
-    uint8 public constant MAX_NUMBER = 25;
-    /// @notice Time players have to reveal once the reveal phase opens.
-    uint64 public constant REVEAL_WINDOW = 1 days;
-    /// @notice After this long without filling, a Created lobby can be cancelled
-    ///         by anyone (the creator can cancel at any time).
-    uint64 public constant JOIN_WINDOW = 1 days;
-
-    // ── Game events ──────────────────────────────────────────────
-
-    /// @notice A new arena was opened.
-    event ArenaCreated(uint256 indexed arenaId, address indexed creator, uint96 stake, uint8 maxPlayers);
-    /// @notice A player joined an arena (committed a sealed board + deposited stake).
-    event PlayerJoined(uint256 indexed arenaId, address indexed player, uint8 joinedCount);
-    /// @notice All seats filled — the arena is sealed and ready to play.
-    event GameReady(uint256 indexed arenaId);
-    /// @notice A lobby that never filled was cancelled; stakes refunded.
-    event ArenaCancelled(uint256 indexed arenaId, uint8 refunded);
-    /// @notice A number was called and recorded onchain.
-    event NumberCalled(uint256 indexed arenaId, address indexed caller, uint8 number, uint8 callIndex);
-    /// @notice The reveal phase opened (BINGO claimed or all 25 numbers called).
-    event RevealPhaseStarted(uint256 indexed arenaId, uint64 revealDeadline);
-    /// @notice A player claimed BINGO, freezing the call sequence for verification.
-    event BingoClaimed(uint256 indexed arenaId, address indexed claimer, uint8 atCallIndex);
-    /// @notice A player revealed their board (hash verified, permutation valid).
-    event BoardRevealed(uint256 indexed arenaId, address indexed player);
-    /// @notice An arena was settled: prize split among winners, fee to treasury.
-    event ArenaSettled(uint256 indexed arenaId, uint256 prizePool, uint256 fee, uint8 winnerCount);
-    /// @notice A winner was credited their share (claim via {withdraw}).
-    event WinnerPaid(uint256 indexed arenaId, address indexed winner, uint256 amount);
-    /// @notice Funds withdrawn from the pull-payment balance.
-    event Withdrawn(address indexed account, uint256 amount);
-
-    // ── Game: arena lifecycle ────────────────────────────────────
-
-    /// @notice Open a new arena. The creator sets the entry stake and seat count
-    ///         but joins like everyone else via {commitBoard}.
+    /// @notice Open a new arena. The creator joins separately via {commitBoard}.
     /// @param maxPlayers Seats (MIN_PLAYERS..MAX_PLAYERS).
-    /// @param stake      Entry stake per player in wei (≥ MIN_STAKE).
-    /// @return arenaId   The new arena's id.
+    /// @param stake Entry stake per player in wei (>= MIN_STAKE).
     function createArena(uint8 maxPlayers, uint96 stake) external whenNotPaused returns (uint256 arenaId) {
         if (maxPlayers < MIN_PLAYERS || maxPlayers > MAX_PLAYERS) revert InvalidPlayerCount(maxPlayers);
         if (stake < MIN_STAKE) revert StakeTooLow(stake, MIN_STAKE);
@@ -170,9 +117,8 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         emit ArenaCreated(arenaId, msg.sender, stake, maxPlayers);
     }
 
-    /// @notice Join an arena by depositing the exact stake and committing a sealed
-    ///         board hash. Seals the arena (state → Committed) once full.
-    /// @param arenaId         Target arena.
+    /// @notice Join an arena with the exact stake and a sealed board commitment.
+    ///         Seals the arena once full.
     /// @param boardCommitment keccak256(abi.encode(board, salt)) — see CommitLib.
     function commitBoard(uint256 arenaId, bytes32 boardCommitment) external payable whenNotPaused nonReentrant {
         CoreStorage storage s = _s();
@@ -199,10 +145,8 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         }
     }
 
-    /// @notice Cancel a lobby that is still in `Created` (never filled) and refund
-    ///         every joined player their stake (no fee). The creator may cancel at
-    ///         any time; anyone may cancel once the join window has elapsed, so
-    ///         stakes can never be stranded in a lobby that fails to fill.
+    /// @notice Cancel an unfilled (Created) lobby and refund every joined player.
+    ///         The creator may cancel anytime; anyone may cancel after JOIN_WINDOW.
     function cancelArena(uint256 arenaId) external nonReentrant {
         CoreStorage storage s = _s();
         Arena storage a = s.arenas[arenaId];
@@ -217,22 +161,19 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         address[] memory players = s.arenaPlayers[arenaId];
         uint256 stake = a.stake;
         for (uint256 i = 0; i < players.length; i++) {
-            s.earnings[players[i]] += stake; // full refund, pull pattern
+            s.earnings[players[i]] += stake;
         }
 
         emit ArenaCancelled(arenaId, uint8(players.length));
     }
 
-    /// @notice Call a number on your turn. Each number (1..25) may be called once;
-    ///         the call is recorded onchain and marks that cell on every board.
-    /// @dev The first call on a sealed (Committed) arena opens play. When all 25
-    ///      numbers have been called with no BINGO claim, the reveal phase opens.
+    /// @notice Call a number on your turn; each of 1..25 may be called once.
+    ///         The first call opens play; the 25th opens the reveal phase.
     function callNumber(uint256 arenaId, uint8 number) external whenNotPaused nonReentrant {
         CoreStorage storage s = _s();
         Arena storage a = s.arenas[arenaId];
         if (a.creator == address(0)) revert ArenaNotFound(arenaId);
 
-        // First call transitions a sealed arena into active play.
         if (a.state == GameState.Committed) {
             a.state = GameState.Playing;
         }
@@ -247,16 +188,14 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
 
         a.calledMask |= bit;
         s.callSequence[arenaId].push(number);
-        uint8 callIndex = a.callCount; // 0-based index of this call
+        uint8 callIndex = a.callCount;
         unchecked {
             a.callCount += 1;
-            // Advance the turn round-robin over the player list.
             a.turnIndex = uint8((uint256(a.turnIndex) + 1) % players.length);
         }
 
         emit NumberCalled(arenaId, msg.sender, number, callIndex);
 
-        // All 25 numbers exhausted with no BINGO claim → open reveal.
         if (a.callCount == MAX_NUMBER) {
             a.state = GameState.Revealing;
             a.revealDeadline = uint64(block.timestamp) + REVEAL_WINDOW;
@@ -264,9 +203,8 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         }
     }
 
-    /// @notice Claim BINGO. Freezes the call sequence and opens the reveal phase;
-    ///         the true winner is determined by replay in {settle}, so a premature
-    ///         or false claim simply fails to win.
+    /// @notice Claim BINGO to freeze the call sequence and open the reveal phase.
+    ///         The winner is decided by replay in {settle}, so a false claim cannot win.
     function claimBingo(uint256 arenaId) external whenNotPaused nonReentrant {
         CoreStorage storage s = _s();
         Arena storage a = s.arenas[arenaId];
@@ -281,8 +219,8 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         emit RevealPhaseStarted(arenaId, a.revealDeadline);
     }
 
-    /// @notice Reveal your sealed board so the winner can be verified. The board
-    ///         must hash to your commitment and be a valid permutation of 1..25.
+    /// @notice Reveal your board; it must hash to your commitment and be a valid
+    ///         permutation of 1..25, within the reveal window.
     function revealBoard(uint256 arenaId, uint8[25] calldata board, bytes32 salt) external whenNotPaused nonReentrant {
         CoreStorage storage s = _s();
         Arena storage a = s.arenas[arenaId];
@@ -300,13 +238,8 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         emit BoardRevealed(arenaId, msg.sender);
     }
 
-    /// @notice Settle an arena: determine the winner(s) by replaying the recorded
-    ///         call sequence against revealed boards, then split the prize.
-    /// @dev Callable once the reveal window has closed, or earlier if every player
-    ///      has revealed. Winner = the player(s) who reach 5 lines at the earliest
-    ///      call index; if no one does, the player(s) with the most completed lines
-    ///      at the final state. Players who did not reveal forfeit (their stake
-    ///      stays in the pot for the winner). Payouts use the pull pattern.
+    /// @notice Settle an arena and split the prize. Callable once the reveal window
+    ///         closes, or earlier if every player has revealed. Non-revealers forfeit.
     function settle(uint256 arenaId) external whenNotPaused nonReentrant {
         CoreStorage storage s = _s();
         Arena storage a = s.arenas[arenaId];
@@ -316,11 +249,8 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         address[] memory players = s.arenaPlayers[arenaId];
         uint256 n = players.length;
 
-        // Replay the recorded calls to decide winners (kept in a helper so settle
-        // stays shallow on the stack and easy to audit).
         (bool[] memory isWinner, uint256 winnerCount, uint256 revealedCount) = _resolveWinners(arenaId);
 
-        // Finality: window closed, or everyone already revealed.
         if (block.timestamp <= a.revealDeadline && revealedCount != n) revert RevealWindowOpen();
 
         a.state = GameState.Settled;
@@ -329,7 +259,6 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         uint256 fee = (totalStake * s.protocolFeeBps) / 10_000;
         uint256 prizePool = totalStake - fee;
 
-        // No one revealed → pot goes to the treasury (nothing stranded).
         if (winnerCount == 0) {
             s.earnings[s.treasury] += totalStake;
             emit ArenaSettled(arenaId, 0, totalStake, 0);
@@ -344,16 +273,99 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
                 emit WinnerPaid(arenaId, players[i], share);
             }
         }
-        // Fee plus any rounding dust accrues to the treasury so the pot reconciles exactly.
         s.earnings[s.treasury] += fee + remainder;
 
         emit ArenaSettled(arenaId, prizePool, fee, uint8(winnerCount));
     }
 
-    /// @dev Replays the recorded call sequence against revealed boards and returns
-    ///      the winner flags. Winner = reaches 5 lines at the earliest call index;
-    ///      if none do, the most completed lines at the final state. Non-revealers
-    ///      are never winners. Pure read — `settle` performs the state changes.
+    /// @notice Withdraw accumulated winnings (pull pattern).
+    function withdraw() external nonReentrant {
+        CoreStorage storage s = _s();
+        uint256 amount = s.earnings[msg.sender];
+        if (amount == 0) revert NothingToWithdraw();
+        s.earnings[msg.sender] = 0;
+
+        (bool ok,) = payable(msg.sender).call{ value: amount }("");
+        if (!ok) revert TransferFailed();
+
+        emit Withdrawn(msg.sender, amount);
+    }
+
+    /// @notice Update the protocol fee, bounded by MAX_FEE_BPS.
+    function setProtocolFee(uint16 newBps) external onlyOwner {
+        if (newBps > MAX_FEE_BPS) revert FeeTooHigh(newBps);
+        CoreStorage storage s = _s();
+        emit ProtocolFeeUpdated(s.protocolFeeBps, newBps);
+        s.protocolFeeBps = newBps;
+    }
+
+    /// @notice Rotate the treasury (fee recipient).
+    function setTreasury(address newTreasury) external onlyOwner {
+        if (newTreasury == address(0)) revert ZeroAddress();
+        CoreStorage storage s = _s();
+        emit TreasuryUpdated(s.treasury, newTreasury);
+        s.treasury = newTreasury;
+    }
+
+    /// @notice Pause game actions. Withdrawals stay open.
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /// @notice Resume game actions.
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    /// @notice Rescue stray ERC20 tokens. Native CELO escrow is never owner-movable.
+    function rescueERC20(IERC20 token, address to, uint256 amount) external onlyOwner nonReentrant {
+        if (to == address(0)) revert ZeroAddress();
+        emit ERC20Rescued(address(token), to, amount);
+        token.safeTransfer(to, amount);
+    }
+
+    function version() external pure virtual returns (string memory) {
+        return "1.1.0";
+    }
+
+    function treasury() external view returns (address) {
+        return _s().treasury;
+    }
+
+    function protocolFeeBps() external view returns (uint16) {
+        return _s().protocolFeeBps;
+    }
+
+    function getArena(uint256 arenaId) external view returns (Arena memory) {
+        return _s().arenas[arenaId];
+    }
+
+    function getPlayers(uint256 arenaId) external view returns (address[] memory) {
+        return _s().arenaPlayers[arenaId];
+    }
+
+    function boardCommitOf(uint256 arenaId, address player) external view returns (bytes32) {
+        return _s().boardCommit[arenaId][player];
+    }
+
+    function getCallSequence(uint256 arenaId) external view returns (uint8[] memory) {
+        return _s().callSequence[arenaId];
+    }
+
+    function hasRevealed(uint256 arenaId, address player) external view returns (bool) {
+        return _s().hasRevealed[arenaId][player];
+    }
+
+    function revealedBoardOf(uint256 arenaId, address player) external view returns (uint8[25] memory) {
+        return _s().revealedBoard[arenaId][player];
+    }
+
+    function earningsOf(address account) external view returns (uint256) {
+        return _s().earnings[account];
+    }
+
+    /// @dev Winner resolution: reaches 5 lines at the earliest call index; if none
+    ///      do, the most completed lines at the final state. Non-revealers excluded.
     function _resolveWinners(uint256 arenaId)
         internal
         view
@@ -400,29 +412,14 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         }
     }
 
-    /// @notice Withdraw your accumulated winnings (pull pattern).
-    function withdraw() external nonReentrant {
-        CoreStorage storage s = _s();
-        uint256 amount = s.earnings[msg.sender];
-        if (amount == 0) revert NothingToWithdraw();
-        s.earnings[msg.sender] = 0;
-
-        (bool ok,) = payable(msg.sender).call{ value: amount }("");
-        if (!ok) revert TransferFailed();
-
-        emit Withdrawn(msg.sender, amount);
-    }
-
-    /// @dev Earliest 1-based call index at which `board` reaches ≥5 completed
-    ///      lines over the ordered `calls`. `achieved` is false if it never does.
-    ///      `board` is assumed valid (checked at reveal), so every number 1..25
-    ///      maps to exactly one cell.
+    /// @dev Earliest 1-based call index at which `board` reaches >= 5 lines over
+    ///      `calls`; `achieved` is false if it never does. `board` is pre-validated.
     function _bingoIndex(uint8[25] memory board, uint8[] memory calls)
         internal
         pure
         returns (uint16 index, bool achieved)
     {
-        uint8[26] memory pos; // pos[number] = cell position + 1 (0 = absent)
+        uint8[26] memory pos;
         for (uint8 p = 0; p < 25; p++) {
             pos[board[p]] = p + 1;
         }
@@ -430,110 +427,12 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         uint256 len = calls.length;
         for (uint256 k = 0; k < len; k++) {
             uint8 cell = pos[calls[k]];
-            if (cell == 0) continue; // number not on this board (shouldn't happen for valid boards)
+            if (cell == 0) continue;
             marked |= uint32(1) << (cell - 1);
             if (LineLib.countCompletedLines(marked) >= 5) {
                 return (uint16(k + 1), true);
             }
         }
         return (0, false);
-    }
-
-    // ── Admin (onlyOwner; owner is a Safe multisig on mainnet) ───
-
-    /// @notice Emitted when the protocol fee changes.
-    event ProtocolFeeUpdated(uint16 oldBps, uint16 newBps);
-    /// @notice Emitted when the treasury changes.
-    event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
-    /// @notice Emitted when stray ERC20 tokens are rescued.
-    event ERC20Rescued(address indexed token, address indexed to, uint256 amount);
-
-    /// @notice Update the protocol fee (bounded by MAX_FEE_BPS). Applies to
-    ///         arenas settled after the change; in-flight stakes are unaffected.
-    function setProtocolFee(uint16 newBps) external onlyOwner {
-        if (newBps > MAX_FEE_BPS) revert FeeTooHigh(newBps);
-        CoreStorage storage s = _s();
-        emit ProtocolFeeUpdated(s.protocolFeeBps, newBps);
-        s.protocolFeeBps = newBps;
-    }
-
-    /// @notice Rotate the treasury (protocol fee recipient).
-    function setTreasury(address newTreasury) external onlyOwner {
-        if (newTreasury == address(0)) revert ZeroAddress();
-        CoreStorage storage s = _s();
-        emit TreasuryUpdated(s.treasury, newTreasury);
-        s.treasury = newTreasury;
-    }
-
-    /// @notice Pause entry to game actions (createArena/commitBoard/callNumber/
-    ///         claimBingo/revealBoard/settle). Withdrawals stay open so players
-    ///         can always exit.
-    function pause() external onlyOwner {
-        _pause();
-    }
-
-    /// @notice Resume game actions.
-    function unpause() external onlyOwner {
-        _unpause();
-    }
-
-    /// @notice Rescue ERC20 tokens accidentally sent to the contract. Cannot touch
-    ///         native CELO — that is player escrow and is never owner-movable.
-    function rescueERC20(IERC20 token, address to, uint256 amount) external onlyOwner nonReentrant {
-        if (to == address(0)) revert ZeroAddress();
-        emit ERC20Rescued(address(token), to, amount);
-        token.safeTransfer(to, amount);
-    }
-
-    // ── Views ────────────────────────────────────────────────────
-
-    /// @notice Semantic version of this implementation.
-    function version() external pure virtual returns (string memory) {
-        return "1.1.0";
-    }
-
-    /// @notice Current protocol fee recipient.
-    function treasury() external view returns (address) {
-        return _s().treasury;
-    }
-
-    /// @notice Current protocol fee in basis points.
-    function protocolFeeBps() external view returns (uint16) {
-        return _s().protocolFeeBps;
-    }
-
-    /// @notice Full arena record.
-    function getArena(uint256 arenaId) external view returns (Arena memory) {
-        return _s().arenas[arenaId];
-    }
-
-    /// @notice Ordered list of players who have committed to an arena.
-    function getPlayers(uint256 arenaId) external view returns (address[] memory) {
-        return _s().arenaPlayers[arenaId];
-    }
-
-    /// @notice A player's committed board hash for an arena (0 if not joined).
-    function boardCommitOf(uint256 arenaId, address player) external view returns (bytes32) {
-        return _s().boardCommit[arenaId][player];
-    }
-
-    /// @notice The numbers called so far, in call order.
-    function getCallSequence(uint256 arenaId) external view returns (uint8[] memory) {
-        return _s().callSequence[arenaId];
-    }
-
-    /// @notice Whether a player has revealed their board for an arena.
-    function hasRevealed(uint256 arenaId, address player) external view returns (bool) {
-        return _s().hasRevealed[arenaId][player];
-    }
-
-    /// @notice A player's revealed board (all zeros until revealed).
-    function revealedBoardOf(uint256 arenaId, address player) external view returns (uint8[25] memory) {
-        return _s().revealedBoard[arenaId][player];
-    }
-
-    /// @notice Withdrawable balance for an account (winnings / treasury fees).
-    function earningsOf(address account) external view returns (uint256) {
-        return _s().earnings[account];
     }
 }

@@ -6,15 +6,8 @@ import { BingoChain } from "../src/BingoChain.sol";
 import { BingoChainProxy } from "../src/BingoChainProxy.sol";
 
 /// @notice Deploys the BingoChain implementation + ERC-1967 proxy and initializes
-///         it atomically through the proxy constructor.
-///
-/// Required env vars:
-///   OWNER_ADDRESS      initial owner (Safe multisig on mainnet; single key on testnet)
-///   TREASURY_ADDRESS   protocol fee recipient
-///   PROTOCOL_FEE_BPS   fee in basis points (e.g. 100 = 1%)
-///
-/// On mainnet (chainid 42220) the owner must differ from the deployer so the
-/// upgrade key is not the hot deploy key.
+///         it atomically. Env: OWNER_ADDRESS, TREASURY_ADDRESS, PROTOCOL_FEE_BPS.
+///         On mainnet the owner (a Safe multisig) must differ from the deployer.
 contract Deploy is Script {
     function run() external returns (address proxy, address implementation) {
         address owner = vm.envAddress("OWNER_ADDRESS");
@@ -26,11 +19,9 @@ contract Deploy is Script {
         }
 
         vm.startBroadcast();
-
         BingoChain impl = new BingoChain();
         bytes memory initData = abi.encodeCall(BingoChain.initialize, (owner, treasury, feeBps));
         BingoChainProxy p = new BingoChainProxy(address(impl), initData);
-
         vm.stopBroadcast();
 
         proxy = address(p);
