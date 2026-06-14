@@ -17,5 +17,12 @@
     "implementation": "https://celoscan.io/address/0x377490a98b99Ff644B9e2878f7791Bc1AA5a5C3E#code"
   },
   "verified": true,
+  "pendingUpgrade": {
+    "cleanImplementation": "0x1b28f5F57F0e9d879b66C3e704Ee2203F1406181",
+    "reason": "Identical runtime bytecode, clean (comment-tidied) verified source",
+    "safeCalldata": "0x4f1ef2860000000000000000000000001b28f5f57f0e9d879b66c3e704ee2203f140618100000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000",
+    "safeTx": "to=proxy, value=0, data=upgradeToAndCall(0x1b28f5F5…6181, 0x) — execute via Safe (threshold 2)",
+    "note": "See docs/upgrade-runbook.md"
+  },
   "notes": "Owner is the operator's Safe multisig (threshold 2) — upgrade + admin authority. MIN_STAKE 1 CELO, 1% protocol fee."
 }
