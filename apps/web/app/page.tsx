@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useAccount, useConnect, useReadContract } from "wagmi";
 import { bingoAbi, BINGO_ADDRESS, CHAIN_ID } from "../lib/bingo";
 import { useMiniPay } from "../hooks/useMiniPay";
@@ -42,6 +43,13 @@ export default function Home() {
         )}
         {isMiniPay && <p className="mt-2 text-xs text-emerald-400">MiniPay detected — auto-connected.</p>}
       </section>
+
+      <Link
+        href="/arenas"
+        className="rounded-xl bg-yellow-400 px-4 py-3 text-center font-semibold text-neutral-950 transition hover:bg-yellow-300"
+      >
+        Play now →
+      </Link>
 
       <section className="grid grid-cols-3 gap-3 text-center text-xs">
         {[
