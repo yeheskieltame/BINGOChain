@@ -2,38 +2,40 @@
 pragma solidity ^0.8.24;
 
 import { Test } from "forge-std/Test.sol";
+import { MockERC20 } from "./Base.sol";
 import { BingoChain } from "../src/BingoChain.sol";
 import { BingoChainProxy } from "../src/BingoChainProxy.sol";
 import { CommitLib } from "../src/libraries/CommitLib.sol";
 import { GameState } from "../src/types/BingoTypes.sol";
-import { Arena } from "../src/types/GameTypes.sol";
 
-/// @notice Drives random sequences of the full game lifecycle across several
-///         actors and arenas. All deposits flow from this handler; ghost vars
-///         track net flow so the invariants can prove no CELO is created or lost.
+/// @notice Drives random full-lifecycle play across actors/arenas. Ghost vars track
+///         token net flow so the invariants can prove no tokens are created or lost.
 contract BingoHandler is Test {
     BingoChain public bingo;
+    MockERC20 public token;
     address public treasury;
 
     address[4] public actors;
     bytes32[4] public salts;
     uint256[] public arenas;
-
     uint96 internal constant STAKE = 1 ether;
 
-    uint256 public totalIn; // CELO deposited via commitBoard
-    uint256 public totalOut; // CELO paid out via withdraw
+    uint256 public totalIn;
+    uint256 public totalOut;
 
     mapping(uint256 => mapping(address => bool)) public joined;
     mapping(uint256 => mapping(address => bool)) public revealed;
 
-    constructor(BingoChain _bingo, address _treasury) {
+    constructor(BingoChain _bingo, MockERC20 _token, address _treasury) {
         bingo = _bingo;
+        token = _token;
         treasury = _treasury;
         for (uint256 i = 0; i < 4; i++) {
             actors[i] = makeAddr(string(abi.encodePacked("inv-actor", vm.toString(i))));
             salts[i] = keccak256(abi.encode("inv-salt", i));
-            vm.deal(actors[i], 1_000_000 ether); // players fund their own stakes
+            token.mint(actors[i], 1_000_000 ether);
+            vm.prank(actors[i]);
+            token.approve(address(bingo), type(uint256).max);
         }
     }
 
@@ -47,51 +49,47 @@ contract BingoHandler is Test {
         return actors;
     }
 
-    // ── actions driven by the fuzzer ─────────────────────────────
-
     function createArena(uint256 seed) public {
-        if (arenas.length >= 4) return; // keep the set small so games actually fill & settle
+        if (arenas.length >= 4) return;
         uint8 maxP = uint8(bound(seed, 2, 4));
-        address creator = actors[seed % 4];
-        vm.prank(creator);
-        arenas.push(bingo.createArena(maxP, STAKE));
+        vm.prank(actors[seed % 4]);
+        arenas.push(bingo.createArena(token, maxP, STAKE));
     }
 
     function commitBoard(uint256 arenaSeed, uint256 actorSeed) public {
         if (arenas.length == 0) return;
         uint256 id = arenas[arenaSeed % arenas.length];
-        Arena memory a = bingo.getArena(id);
-        if (a.state != GameState.Created || a.joinedCount >= a.maxPlayers) return;
+        if (uint8(bingo.getArena(id).state) != uint8(GameState.Created)) return;
+        if (bingo.getArena(id).joinedCount >= bingo.getArena(id).maxPlayers) return;
         address actor = actors[actorSeed % 4];
         if (joined[id][actor]) return;
 
         joined[id][actor] = true;
         totalIn += STAKE;
         vm.prank(actor);
-        bingo.commitBoard{ value: STAKE }(id, CommitLib.commitment(_board(), salts[actorSeed % 4]));
+        bingo.commitBoard(id, CommitLib.commitment(_board(), salts[actorSeed % 4]));
     }
 
     function callNumber(uint256 arenaSeed, uint256 numSeed) public {
         if (arenas.length == 0) return;
         uint256 id = arenas[arenaSeed % arenas.length];
-        Arena memory a = bingo.getArena(id);
-        if (a.state != GameState.Committed && a.state != GameState.Playing) return;
+        uint8 st = uint8(bingo.getArena(id).state);
+        if (st != uint8(GameState.Committed) && st != uint8(GameState.Playing)) return;
         address[] memory ps = bingo.getPlayers(id);
         if (ps.length == 0) return;
-        address turnPlayer = ps[a.turnIndex];
+        address turnPlayer = ps[bingo.getArena(id).turnIndex];
+        uint32 mask = bingo.getArena(id).calledMask;
 
-        // pick a number 1..25 not yet called
         uint8 start = uint8(bound(numSeed, 1, 25));
         uint8 number;
         for (uint8 d = 0; d < 25; d++) {
             uint8 cand = uint8(((start - 1 + d) % 25) + 1);
-            if ((a.calledMask & (uint32(1) << (cand - 1))) == 0) {
+            if ((mask & (uint32(1) << (cand - 1))) == 0) {
                 number = cand;
                 break;
             }
         }
         if (number == 0) return;
-
         vm.prank(turnPlayer);
         bingo.callNumber(id, number);
     }
@@ -99,8 +97,7 @@ contract BingoHandler is Test {
     function claimBingo(uint256 arenaSeed, uint256 actorSeed) public {
         if (arenas.length == 0) return;
         uint256 id = arenas[arenaSeed % arenas.length];
-        Arena memory a = bingo.getArena(id);
-        if (a.state != GameState.Playing) return;
+        if (uint8(bingo.getArena(id).state) != uint8(GameState.Playing)) return;
         address actor = actors[actorSeed % 4];
         if (!joined[id][actor]) return;
         vm.prank(actor);
@@ -110,8 +107,8 @@ contract BingoHandler is Test {
     function revealBoard(uint256 arenaSeed, uint256 actorSeed) public {
         if (arenas.length == 0) return;
         uint256 id = arenas[arenaSeed % arenas.length];
-        Arena memory a = bingo.getArena(id);
-        if (a.state != GameState.Revealing || block.timestamp > a.revealDeadline) return;
+        if (uint8(bingo.getArena(id).state) != uint8(GameState.Revealing)) return;
+        if (block.timestamp > bingo.getArena(id).revealDeadline) return;
         uint256 ai = actorSeed % 4;
         address actor = actors[ai];
         if (!joined[id][actor] || revealed[id][actor]) return;
@@ -123,61 +120,62 @@ contract BingoHandler is Test {
     function settle(uint256 arenaSeed, bool closeWindow) public {
         if (arenas.length == 0) return;
         uint256 id = arenas[arenaSeed % arenas.length];
-        Arena memory a = bingo.getArena(id);
-        if (a.state != GameState.Revealing) return;
-        if (closeWindow && block.timestamp <= a.revealDeadline) {
-            vm.warp(uint256(a.revealDeadline) + 1);
+        if (uint8(bingo.getArena(id).state) != uint8(GameState.Revealing)) return;
+        if (closeWindow && block.timestamp <= bingo.getArena(id).revealDeadline) {
+            vm.warp(uint256(bingo.getArena(id).revealDeadline) + 1);
         }
         try bingo.settle(id) { } catch { }
     }
 
     function withdraw(uint256 actorSeed) public {
         address actor = actors[actorSeed % 4];
-        uint256 owed = bingo.earningsOf(actor);
+        uint256 owed = bingo.earningsOf(actor, token);
         if (owed == 0) return;
         totalOut += owed;
         vm.prank(actor);
-        bingo.withdraw();
+        bingo.withdraw(token);
     }
 
     function withdrawTreasury() public {
-        uint256 owed = bingo.earningsOf(treasury);
+        uint256 owed = bingo.earningsOf(treasury, token);
         if (owed == 0) return;
         totalOut += owed;
         vm.prank(treasury);
-        bingo.withdraw();
+        bingo.withdraw(token);
     }
 }
 
-/// @notice Money-conservation invariants over random full-lifecycle play.
 contract BingoInvariantTest is Test {
     BingoChain internal bingo;
+    MockERC20 internal token;
     BingoHandler internal handler;
     address internal owner = makeAddr("owner");
     address internal treasury = makeAddr("treasury");
 
     function setUp() public {
         BingoChain impl = new BingoChain();
-        bytes memory initData = abi.encodeCall(BingoChain.initialize, (owner, treasury, 100));
-        bingo = BingoChain(address(new BingoChainProxy(address(impl), initData)));
-        handler = new BingoHandler(bingo, treasury);
+        bingo = BingoChain(
+            address(new BingoChainProxy(address(impl), abi.encodeCall(BingoChain.initialize, (owner, treasury, 100))))
+        );
+        token = new MockERC20();
+        vm.prank(owner);
+        bingo.allowToken(token, 1 ether);
+        handler = new BingoHandler(bingo, token, treasury);
         targetContract(address(handler));
     }
 
-    /// @dev The contract's CELO balance is exactly what flowed in minus what
-    ///      flowed out — no CELO is ever minted or burned by the game logic.
+    /// @dev Contract token balance == net flow — no tokens minted or burned by the game.
     function invariant_balanceEqualsNetFlow() public view {
-        assertEq(address(bingo).balance, handler.totalIn() - handler.totalOut());
+        assertEq(token.balanceOf(address(bingo)), handler.totalIn() - handler.totalOut());
     }
 
-    /// @dev Credited-but-unwithdrawn earnings can never exceed the held balance,
-    ///      so withdrawals can always be honored (settle never over-credits).
+    /// @dev Credited earnings never exceed the held balance (settle never over-credits).
     function invariant_sumEarningsWithinBalance() public view {
         address[4] memory actors = handler.actorList();
-        uint256 sum = bingo.earningsOf(treasury);
+        uint256 sum = bingo.earningsOf(treasury, token);
         for (uint256 i = 0; i < 4; i++) {
-            sum += bingo.earningsOf(actors[i]);
+            sum += bingo.earningsOf(actors[i], token);
         }
-        assertLe(sum, address(bingo).balance);
+        assertLe(sum, token.balanceOf(address(bingo)));
     }
 }

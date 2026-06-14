@@ -16,6 +16,14 @@ export const celo = defineChain({
 export const CHAIN_ID = 42_220 as const;
 export const BINGO_ADDRESS = "0x8bE7c07CCF9FF515d82D4c36aB4EB937941432f1" as const;
 
+/// Whitelisted settlement tokens on Celo mainnet (owner-enabled via allowToken).
+export const TOKENS = {
+  CELO: { address: "0x471EcE3750Da237f93B8E339c536989b8978a438", decimals: 18, symbol: "CELO" },
+  cUSD: { address: "0x765DE816845861e75A25fCA122bb6898B8B1282a", decimals: 18, symbol: "cUSD" },
+  USDC: { address: "0xcebA9300f2b948710d2653dD7B07f33A8B32118C", decimals: 6, symbol: "USDC" },
+  USDT: { address: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e", decimals: 6, symbol: "USDT" },
+} as const;
+
 /// Board geometry constants mirrored from the contract.
 export const BOARD_SIZE = 25;
 export const MIN_PLAYERS = 2;

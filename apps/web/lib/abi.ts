@@ -71,19 +71,6 @@ export const bingoAbi = [
   },
   {
     "type": "function",
-    "name": "MIN_STAKE",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "REVEAL_WINDOW",
     "inputs": [],
     "outputs": [
@@ -112,6 +99,24 @@ export const bingoAbi = [
     "type": "function",
     "name": "acceptOwnership",
     "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "allowToken",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "contract IERC20"
+      },
+      {
+        "name": "minStake_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -199,12 +204,17 @@ export const bingoAbi = [
       }
     ],
     "outputs": [],
-    "stateMutability": "payable"
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
     "name": "createArena",
     "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "contract IERC20"
+      },
       {
         "name": "maxPlayers",
         "type": "uint8",
@@ -233,6 +243,11 @@ export const bingoAbi = [
         "name": "account",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "contract IERC20"
       }
     ],
     "outputs": [
@@ -314,6 +329,11 @@ export const bingoAbi = [
             "name": "createdAt",
             "type": "uint64",
             "internalType": "uint64"
+          },
+          {
+            "name": "token",
+            "type": "address",
+            "internalType": "address"
           }
         ]
       }
@@ -404,6 +424,44 @@ export const bingoAbi = [
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "isTokenAllowed",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "contract IERC20"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "minStake",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "contract IERC20"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -660,7 +718,13 @@ export const bingoAbi = [
   {
     "type": "function",
     "name": "withdraw",
-    "inputs": [],
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "contract IERC20"
+      }
+    ],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -695,6 +759,12 @@ export const bingoAbi = [
       },
       {
         "name": "creator",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "token",
         "type": "address",
         "indexed": true,
         "internalType": "address"
@@ -1012,6 +1082,25 @@ export const bingoAbi = [
   },
   {
     "type": "event",
+    "name": "TokenAllowed",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "minStake",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "TreasuryUpdated",
     "inputs": [
       {
@@ -1091,6 +1180,12 @@ export const bingoAbi = [
         "internalType": "address"
       },
       {
+        "name": "token",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
         "name": "amount",
         "type": "uint256",
         "indexed": false,
@@ -1154,6 +1249,11 @@ export const bingoAbi = [
   },
   {
     "type": "error",
+    "name": "CannotRescueGameToken",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "CommitMismatch",
     "inputs": []
   },
@@ -1196,22 +1296,6 @@ export const bingoAbi = [
         "name": "bps",
         "type": "uint16",
         "internalType": "uint16"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "IncorrectStake",
-    "inputs": [
-      {
-        "name": "sent",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "required",
-        "type": "uint256",
-        "internalType": "uint256"
       }
     ]
   },
@@ -1344,8 +1428,14 @@ export const bingoAbi = [
   },
   {
     "type": "error",
-    "name": "TransferFailed",
-    "inputs": []
+    "name": "TokenNotAllowed",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
   },
   {
     "type": "error",
