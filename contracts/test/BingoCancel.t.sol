@@ -1,34 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { Test } from "forge-std/Test.sol";
-import { BingoChain } from "../src/BingoChain.sol";
-import { BingoChainProxy } from "../src/BingoChainProxy.sol";
+import { Base } from "./Base.sol";
 import { GameState } from "../src/types/BingoTypes.sol";
 import { ArenaNotFound, WrongState, CancelNotAllowed } from "../src/types/GameTypes.sol";
 
-contract BingoCancelTest is Test {
-    BingoChain internal bingo;
-    address internal owner = makeAddr("owner");
-    address internal treasury = makeAddr("treasury");
+contract BingoCancelTest is Base {
     address internal alice = makeAddr("alice");
     address internal bob = makeAddr("bob");
 
-    uint96 internal constant STAKE = 1 ether;
-
     function setUp() public {
-        BingoChain impl = new BingoChain();
-        bytes memory initData = abi.encodeCall(BingoChain.initialize, (owner, treasury, 100));
-        bingo = BingoChain(address(new BingoChainProxy(address(impl), initData)));
-        vm.deal(alice, 10 ether);
-        vm.deal(bob, 10 ether);
+        _deployBingo(100);
+        _prep(alice);
+        _prep(bob);
     }
 
     function _createdWithOne() internal returns (uint256 id) {
-        vm.prank(alice);
-        id = bingo.createArena(3, STAKE); // 3 seats, will stay unfilled
-        vm.prank(alice);
-        bingo.commitBoard{ value: STAKE }(id, keccak256("a"));
+        id = _create(alice, 3); // 3 seats, stays unfilled
+        _commit(alice, id, keccak256("a"));
     }
 
     function test_CreatorCancelsAndRefunds() public {
@@ -37,29 +26,25 @@ contract BingoCancelTest is Test {
         bingo.cancelArena(id);
 
         assertEq(uint8(bingo.getArena(id).state), uint8(GameState.Cancelled));
-        assertEq(bingo.earningsOf(alice), STAKE, "alice refunded");
-        assertEq(address(bingo).balance, STAKE, "held until withdrawn");
+        assertEq(bingo.earningsOf(alice, token), STAKE);
+        assertEq(token.balanceOf(address(bingo)), STAKE);
 
-        uint256 before = alice.balance;
+        uint256 before = token.balanceOf(alice);
         vm.prank(alice);
-        bingo.withdraw();
-        assertEq(alice.balance, before + STAKE);
-        assertEq(address(bingo).balance, 0, "fully drained");
+        bingo.withdraw(token);
+        assertEq(token.balanceOf(alice), before + STAKE);
+        assertEq(token.balanceOf(address(bingo)), 0);
     }
 
     function test_RefundsAllJoinedPlayers() public {
-        vm.prank(alice);
-        uint256 id = bingo.createArena(3, STAKE);
-        vm.prank(alice);
-        bingo.commitBoard{ value: STAKE }(id, keccak256("a"));
-        vm.prank(bob);
-        bingo.commitBoard{ value: STAKE }(id, keccak256("b"));
-
+        uint256 id = _create(alice, 3);
+        _commit(alice, id, keccak256("a"));
+        _commit(bob, id, keccak256("b"));
         vm.prank(alice);
         bingo.cancelArena(id);
-        assertEq(bingo.earningsOf(alice), STAKE);
-        assertEq(bingo.earningsOf(bob), STAKE);
-        assertEq(bingo.earningsOf(treasury), 0, "no fee on cancel");
+        assertEq(bingo.earningsOf(alice, token), STAKE);
+        assertEq(bingo.earningsOf(bob, token), STAKE);
+        assertEq(bingo.earningsOf(treasury, token), 0);
     }
 
     function test_RevertWhen_NonCreatorCancelsBeforeWindow() public {
@@ -71,11 +56,11 @@ contract BingoCancelTest is Test {
 
     function test_AnyoneCancelsAfterWindow() public {
         uint256 id = _createdWithOne();
-        vm.warp(block.timestamp + 2 days); // past JOIN_WINDOW
-        vm.prank(bob); // not the creator
+        vm.warp(block.timestamp + 2 days);
+        vm.prank(bob);
         bingo.cancelArena(id);
         assertEq(uint8(bingo.getArena(id).state), uint8(GameState.Cancelled));
-        assertEq(bingo.earningsOf(alice), STAKE);
+        assertEq(bingo.earningsOf(alice, token), STAKE);
     }
 
     function test_RevertWhen_CancelNonexistent() public {
@@ -84,14 +69,9 @@ contract BingoCancelTest is Test {
     }
 
     function test_RevertWhen_CancelAfterSealed() public {
-        // fill a 2-seat arena so it seals to Committed, then cancel must fail
-        vm.prank(alice);
-        uint256 id = bingo.createArena(2, STAKE);
-        vm.prank(alice);
-        bingo.commitBoard{ value: STAKE }(id, keccak256("a"));
-        vm.prank(bob);
-        bingo.commitBoard{ value: STAKE }(id, keccak256("b"));
-
+        uint256 id = _create(alice, 2);
+        _commit(alice, id, keccak256("a"));
+        _commit(bob, id, keccak256("b"));
         vm.prank(alice);
         vm.expectRevert(abi.encodeWithSelector(WrongState.selector, id, GameState.Created, GameState.Committed));
         bingo.cancelArena(id);

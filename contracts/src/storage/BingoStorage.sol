@@ -17,7 +17,11 @@ struct CoreStorage {
     mapping(uint256 => mapping(address => bool)) hasRevealed;
     mapping(uint256 => mapping(address => uint8[25])) revealedBoard;
     mapping(uint256 => uint8[]) callSequence;
-    mapping(address => uint256) earnings; // pull-payment balances (wei)
+    mapping(address => uint256) earnings; // deprecated (native-only v1); kept for layout
+    // multi-token (append-only)
+    mapping(address => bool) allowedToken;
+    mapping(address => uint256) minStakeOf; // token => minimum stake
+    mapping(address => mapping(address => uint256)) earningsByToken; // account => token => amount
 }
 
 abstract contract BingoStorage {

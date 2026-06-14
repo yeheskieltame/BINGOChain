@@ -15,8 +15,8 @@ import {
     ArenaNotFound,
     WrongState,
     InvalidPlayerCount,
+    TokenNotAllowed,
     StakeTooLow,
-    IncorrectStake,
     AlreadyJoined,
     ArenaFull,
     NotAPlayer,
@@ -29,8 +29,8 @@ import {
     RevealWindowOpen,
     InvalidBoard,
     NothingToWithdraw,
-    TransferFailed,
-    CancelNotAllowed
+    CancelNotAllowed,
+    CannotRescueGameToken
 } from "./types/GameTypes.sol";
 import { CommitLib } from "./libraries/CommitLib.sol";
 import { BoardLib } from "./libraries/BoardLib.sol";
@@ -40,19 +40,22 @@ import { LineLib } from "./libraries/LineLib.sol";
 /// @notice Strategic onchain bingo on Celo: players commit a sealed 5x5 board, call
 ///         numbers in turn, then reveal so the winner is verified by replaying the
 ///         recorded calls. UUPS upgradeable with EIP-7201 namespaced storage.
+///         Stakes settle in any whitelisted ERC20 (CELO, cUSD, USDC, USDT).
 contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgradeable {
     using SafeERC20 for IERC20;
 
     uint16 public constant MAX_FEE_BPS = 500;
     uint8 public constant MIN_PLAYERS = 2;
     uint8 public constant MAX_PLAYERS = 6;
-    uint256 public constant MIN_STAKE = 1 ether;
     uint8 public constant MAX_NUMBER = 25;
     uint64 public constant REVEAL_WINDOW = 1 days;
     uint64 public constant JOIN_WINDOW = 1 days;
 
     event BingoChainInitialized(address indexed owner, address indexed treasury, uint16 protocolFeeBps);
-    event ArenaCreated(uint256 indexed arenaId, address indexed creator, uint96 stake, uint8 maxPlayers);
+    event TokenAllowed(address indexed token, uint256 minStake);
+    event ArenaCreated(
+        uint256 indexed arenaId, address indexed creator, address indexed token, uint96 stake, uint8 maxPlayers
+    );
     event PlayerJoined(uint256 indexed arenaId, address indexed player, uint8 joinedCount);
     event GameReady(uint256 indexed arenaId);
     event ArenaCancelled(uint256 indexed arenaId, uint8 refunded);
@@ -62,7 +65,7 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
     event BoardRevealed(uint256 indexed arenaId, address indexed player);
     event ArenaSettled(uint256 indexed arenaId, uint256 prizePool, uint256 fee, uint8 winnerCount);
     event WinnerPaid(uint256 indexed arenaId, address indexed winner, uint256 amount);
-    event Withdrawn(address indexed account, uint256 amount);
+    event Withdrawn(address indexed account, address indexed token, uint256 amount);
     event ProtocolFeeUpdated(uint16 oldBps, uint16 newBps);
     event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
     event ERC20Rescued(address indexed token, address indexed to, uint256 amount);
@@ -98,29 +101,38 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
 
-    /// @notice Open a new arena. The creator joins separately via {commitBoard}.
+    /// @notice Open a new arena settled in `token`. The creator joins via {commitBoard}.
+    /// @param token A whitelisted ERC20 (CELO, cUSD, USDC, USDT).
     /// @param maxPlayers Seats (MIN_PLAYERS..MAX_PLAYERS).
-    /// @param stake Entry stake per player in wei (>= MIN_STAKE).
-    function createArena(uint8 maxPlayers, uint96 stake) external whenNotPaused returns (uint256 arenaId) {
-        if (maxPlayers < MIN_PLAYERS || maxPlayers > MAX_PLAYERS) revert InvalidPlayerCount(maxPlayers);
-        if (stake < MIN_STAKE) revert StakeTooLow(stake, MIN_STAKE);
-
+    /// @param stake Entry stake per player (>= the token's minimum).
+    function createArena(IERC20 token, uint8 maxPlayers, uint96 stake)
+        external
+        whenNotPaused
+        returns (uint256 arenaId)
+    {
+        if (maxPlayers < MIN_PLAYERS || maxPlayers > MAX_PLAYERS) {
+            revert InvalidPlayerCount(maxPlayers);
+        }
         CoreStorage storage s = _s();
+        if (!s.allowedToken[address(token)]) revert TokenNotAllowed(address(token));
+        if (stake < s.minStakeOf[address(token)]) revert StakeTooLow(stake, s.minStakeOf[address(token)]);
+
         arenaId = ++s.arenaCount;
         Arena storage a = s.arenas[arenaId];
         a.creator = msg.sender;
+        a.token = address(token);
         a.stake = stake;
         a.maxPlayers = maxPlayers;
         a.state = GameState.Created;
         a.createdAt = uint64(block.timestamp);
 
-        emit ArenaCreated(arenaId, msg.sender, stake, maxPlayers);
+        emit ArenaCreated(arenaId, msg.sender, address(token), stake, maxPlayers);
     }
 
-    /// @notice Join an arena with the exact stake and a sealed board commitment.
+    /// @notice Join an arena with a sealed board commitment; pulls the stake (approve first).
     ///         Seals the arena once full.
     /// @param boardCommitment keccak256(abi.encode(board, salt)) — see CommitLib.
-    function commitBoard(uint256 arenaId, bytes32 boardCommitment) external payable whenNotPaused nonReentrant {
+    function commitBoard(uint256 arenaId, bytes32 boardCommitment) external whenNotPaused nonReentrant {
         CoreStorage storage s = _s();
         Arena storage a = s.arenas[arenaId];
 
@@ -128,7 +140,6 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         if (a.state != GameState.Created) revert WrongState(arenaId, GameState.Created, a.state);
         if (s.hasJoined[arenaId][msg.sender]) revert AlreadyJoined();
         if (a.joinedCount >= a.maxPlayers) revert ArenaFull();
-        if (msg.value != a.stake) revert IncorrectStake(msg.value, a.stake);
 
         s.hasJoined[arenaId][msg.sender] = true;
         s.boardCommit[arenaId][msg.sender] = boardCommitment;
@@ -136,6 +147,8 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         unchecked {
             a.joinedCount += 1;
         }
+
+        IERC20(a.token).safeTransferFrom(msg.sender, address(this), a.stake);
 
         emit PlayerJoined(arenaId, msg.sender, a.joinedCount);
 
@@ -159,9 +172,10 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         a.state = GameState.Cancelled;
 
         address[] memory players = s.arenaPlayers[arenaId];
+        address token = a.token;
         uint256 stake = a.stake;
         for (uint256 i = 0; i < players.length; i++) {
-            s.earnings[players[i]] += stake;
+            s.earningsByToken[players[i]][token] += stake;
         }
 
         emit ArenaCancelled(arenaId, uint8(players.length));
@@ -248,6 +262,7 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
 
         address[] memory players = s.arenaPlayers[arenaId];
         uint256 n = players.length;
+        address token = a.token;
 
         (bool[] memory isWinner, uint256 winnerCount, uint256 revealedCount) = _resolveWinners(arenaId);
 
@@ -260,7 +275,7 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         uint256 prizePool = totalStake - fee;
 
         if (winnerCount == 0) {
-            s.earnings[s.treasury] += totalStake;
+            s.earningsByToken[s.treasury][token] += totalStake;
             emit ArenaSettled(arenaId, 0, totalStake, 0);
             return;
         }
@@ -269,26 +284,35 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         uint256 remainder = prizePool - share * winnerCount;
         for (uint256 i = 0; i < n; i++) {
             if (isWinner[i]) {
-                s.earnings[players[i]] += share;
+                s.earningsByToken[players[i]][token] += share;
                 emit WinnerPaid(arenaId, players[i], share);
             }
         }
-        s.earnings[s.treasury] += fee + remainder;
+        s.earningsByToken[s.treasury][token] += fee + remainder;
 
         emit ArenaSettled(arenaId, prizePool, fee, uint8(winnerCount));
     }
 
-    /// @notice Withdraw accumulated winnings (pull pattern).
-    function withdraw() external nonReentrant {
+    /// @notice Withdraw your accumulated winnings/fees for a given token.
+    function withdraw(IERC20 token) external nonReentrant {
         CoreStorage storage s = _s();
-        uint256 amount = s.earnings[msg.sender];
+        uint256 amount = s.earningsByToken[msg.sender][address(token)];
         if (amount == 0) revert NothingToWithdraw();
-        s.earnings[msg.sender] = 0;
+        s.earningsByToken[msg.sender][address(token)] = 0;
 
-        (bool ok,) = payable(msg.sender).call{ value: amount }("");
-        if (!ok) revert TransferFailed();
+        token.safeTransfer(msg.sender, amount);
 
-        emit Withdrawn(msg.sender, amount);
+        emit Withdrawn(msg.sender, address(token), amount);
+    }
+
+    /// @notice Whitelist a settlement token and set its minimum stake (owner only).
+    ///         One-way: a token stays allowed; calling again only updates the minimum.
+    function allowToken(IERC20 token, uint256 minStake_) external onlyOwner {
+        if (address(token) == address(0)) revert TokenNotAllowed(address(0));
+        CoreStorage storage s = _s();
+        s.allowedToken[address(token)] = true;
+        s.minStakeOf[address(token)] = minStake_;
+        emit TokenAllowed(address(token), minStake_);
     }
 
     /// @notice Update the protocol fee, bounded by MAX_FEE_BPS.
@@ -317,15 +341,16 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         _unpause();
     }
 
-    /// @notice Rescue stray ERC20 tokens. Native CELO escrow is never owner-movable.
+    /// @notice Rescue stray tokens. Whitelisted game tokens (player escrow) are protected.
     function rescueERC20(IERC20 token, address to, uint256 amount) external onlyOwner nonReentrant {
         if (to == address(0)) revert ZeroAddress();
+        if (_s().allowedToken[address(token)]) revert CannotRescueGameToken();
         emit ERC20Rescued(address(token), to, amount);
         token.safeTransfer(to, amount);
     }
 
     function version() external pure virtual returns (string memory) {
-        return "1.1.0";
+        return "1.2.0";
     }
 
     function treasury() external view returns (address) {
@@ -334,6 +359,14 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
 
     function protocolFeeBps() external view returns (uint16) {
         return _s().protocolFeeBps;
+    }
+
+    function isTokenAllowed(IERC20 token) external view returns (bool) {
+        return _s().allowedToken[address(token)];
+    }
+
+    function minStake(IERC20 token) external view returns (uint256) {
+        return _s().minStakeOf[address(token)];
     }
 
     function getArena(uint256 arenaId) external view returns (Arena memory) {
@@ -360,8 +393,8 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         return _s().revealedBoard[arenaId][player];
     }
 
-    function earningsOf(address account) external view returns (uint256) {
-        return _s().earnings[account];
+    function earningsOf(address account, IERC20 token) external view returns (uint256) {
+        return _s().earningsByToken[account][address(token)];
     }
 
     /// @dev Winner resolution: reaches 5 lines at the earliest call index; if none
