@@ -15,6 +15,8 @@ import { NumberPad } from "../../../components/NumberPad";
 import { ConnectButton } from "../../../components/ConnectButton";
 import { PlayerAvatar } from "../../../components/PlayerAvatar";
 import { useProfiles } from "../../../hooks/useProfiles";
+import { Button } from "../../../components/ui/button";
+import { Badge, type BadgeProps } from "../../../components/ui/badge";
 
 type Saved = { board: number[]; salt: `0x${string}` };
 
@@ -87,24 +89,30 @@ export default function ArenaPage() {
     );
 
   if (!arena) {
-    return <main className="mx-auto max-w-md px-5 py-10 text-neutral-400">Loading arena #{id.toString()}…</main>;
+    return <main className="mx-auto max-w-md px-5 py-10 text-muted-foreground">Loading arena #{id.toString()}…</main>;
   }
 
   const state = Number(arena.state);
   const STATES = ["Created", "Committed", "Playing", "Revealing", "Settled", "Cancelled"];
   const myTurn = state === 1 || state === 2 ? players[Number(arena.turnIndex)]?.toLowerCase() === address?.toLowerCase() : false;
   const lines = mine ? completedLines(mine.board, calledSet) : 0;
+  const lastCalled = calls.length ? calls[calls.length - 1] : undefined;
+  const STATE_BADGE: BadgeProps["variant"][] = ["open", "full", "playing", "revealing", "settled", "cancelled"];
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-5 py-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-gold-400">Arena #{id.toString()}</h1>
+        <h1 className="font-display text-2xl font-black text-foreground">
+          Arena <span className="font-mono text-gold-300">#{id.toString()}</span>
+        </h1>
         <ConnectButton />
       </div>
 
-      <div className="flex justify-between rounded-xl border border-neutral-800 bg-neutral-900 p-3 text-sm">
-        <span>{STATES[state]}</span>
-        <span className="text-neutral-400">
+      <div className="glass flex items-center justify-between rounded-xl p-3.5 text-sm">
+        <Badge variant={STATE_BADGE[state] ?? "open"} dot={state === 1 || state === 2}>
+          {STATES[state]}
+        </Badge>
+        <span className="font-mono text-muted-foreground">
           {arena.joinedCount}/{arena.maxPlayers} · {t ? formatAmount(arena.stake, t.decimals) : ""} {t?.symbol}
         </span>
       </div>
@@ -141,29 +149,31 @@ export default function ArenaPage() {
 
       {/* Created: join */}
       {state === 0 && !joined && (
-        <button type="button" onClick={() => run(join)} disabled={busy || !address} className="rounded-xl bg-gold-400 px-4 py-3 font-semibold text-neutral-950 disabled:opacity-50">
+        <Button onClick={() => run(join)} disabled={busy || !address} size="lg">
           {busy ? "Joining…" : "Generate board + join"}
-        </button>
+        </Button>
       )}
-      {state === 0 && joined && <p className="text-sm text-emerald-400">Joined — waiting for the arena to fill.</p>}
+      {state === 0 && joined && <p className="text-sm text-state-open">Joined — waiting for the arena to fill.</p>}
 
       {/* Playing: board progress + call + claim */}
       {(state === 1 || state === 2) && (
         <>
           {mine && (
             <div className="space-y-2">
-              <p className="text-sm text-neutral-400">Your board · {lines}/5 lines</p>
-              <BoardGrid board={mine.board} called={calledSet} />
+              <p className="text-sm text-muted-foreground">
+                Your board · <span className="text-gold-300">{lines}/5</span> lines
+              </p>
+              <BoardGrid board={mine.board} called={calledSet} lastCalled={lastCalled} />
             </div>
           )}
           <div className="space-y-2">
-            <p className="text-sm text-neutral-400">{myTurn ? "Your turn — call a number" : "Called numbers"}</p>
-            <NumberPad called={calledSet} disabled={busy || !myTurn} onCall={(n) => run(() => write("callNumber", [id, n]))} />
+            <p className="text-sm text-muted-foreground">{myTurn ? "Your turn — call a number" : "Called numbers"}</p>
+            <NumberPad called={calledSet} disabled={busy || !myTurn} onCall={(n) => run(() => write("callNumber", [id, n]))} lastCalled={lastCalled} />
           </div>
           {joined && (
-            <button type="button" onClick={() => run(() => write("claimBingo", [id]))} disabled={busy} className="rounded-xl border border-gold-400 px-4 py-3 font-semibold text-gold-400 disabled:opacity-50">
+            <Button variant="outline" onClick={() => run(() => write("claimBingo", [id]))} disabled={busy} size="lg" className="border-gold-400/50 text-gold-300 hover:bg-gold-400/10">
               Claim BINGO
-            </button>
+            </Button>
           )}
         </>
       )}
@@ -172,28 +182,28 @@ export default function ArenaPage() {
       {state === 3 && (
         <>
           {mine ? (
-            <button type="button" onClick={() => run(() => write("revealBoard", [id, mine.board, mine.salt]))} disabled={busy} className="rounded-xl bg-gold-400 px-4 py-3 font-semibold text-neutral-950 disabled:opacity-50">
+            <Button onClick={() => run(() => write("revealBoard", [id, mine.board, mine.salt]))} disabled={busy} size="lg">
               Reveal my board
-            </button>
+            </Button>
           ) : (
-            <p className="text-sm text-neutral-500">No saved board on this device to reveal.</p>
+            <p className="text-sm text-muted-foreground">No saved board on this device to reveal.</p>
           )}
-          <button type="button" onClick={() => run(() => write("settle", [id]))} disabled={busy} className="rounded-xl border border-neutral-700 px-4 py-3 font-semibold disabled:opacity-50">
+          <Button variant="secondary" onClick={() => run(() => write("settle", [id]))} disabled={busy} size="lg">
             Settle
-          </button>
+          </Button>
         </>
       )}
 
       {/* Settled / Cancelled: withdraw */}
       {(state === 4 || state === 5) && (
         <>
-          <p className="text-sm text-neutral-400">
+          <p className="text-sm text-muted-foreground">
             {state === 4 ? "Settled." : "Cancelled."} Your balance: {t ? formatAmount(earnings.data ?? 0n, t.decimals) : "0"} {t?.symbol}
           </p>
           {(earnings.data ?? 0n) > 0n && (
-            <button type="button" onClick={() => run(() => write("withdraw", [token]))} disabled={busy} className="rounded-xl bg-gold-400 px-4 py-3 font-semibold text-neutral-950 disabled:opacity-50">
+            <Button onClick={() => run(() => write("withdraw", [token]))} disabled={busy} size="lg">
               Withdraw
-            </button>
+            </Button>
           )}
         </>
       )}
