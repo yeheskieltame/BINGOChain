@@ -23,7 +23,7 @@ export function NumberPad({
             className={`aspect-square rounded-lg text-sm font-bold transition ${
               used
                 ? "bg-neutral-800 text-neutral-600"
-                : "bg-neutral-700 text-neutral-100 enabled:hover:bg-yellow-400 enabled:hover:text-neutral-950 disabled:opacity-40"
+                : "bg-neutral-700 text-neutral-100 enabled:hover:bg-gold-400 enabled:hover:text-neutral-950 disabled:opacity-40"
             }`}
           >
             {n}

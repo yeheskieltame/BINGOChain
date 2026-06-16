@@ -20,14 +20,14 @@ export default function ArenasPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-5 py-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-yellow-400">Arenas</h1>
+        <h1 className="text-2xl font-black text-gold-400">Arenas</h1>
         <ConnectButton />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Link
           href="/create"
-          className="rounded-xl bg-yellow-400 px-4 py-3 text-center font-semibold text-neutral-950"
+          className="rounded-xl bg-gold-400 px-4 py-3 text-center font-semibold text-neutral-950"
         >
           + Create arena
         </Link>

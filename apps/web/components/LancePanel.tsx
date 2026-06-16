@@ -86,7 +86,7 @@ export function LancePanel() {
   return (
     <div className="space-y-4 rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-lg font-black text-yellow-400">$LANCE</h2>
+        <h2 className="text-lg font-black text-gold-400">$LANCE</h2>
         <span className="text-xs text-neutral-500">~{rate} LANCE / CELO</span>
       </div>
 
@@ -122,7 +122,7 @@ export function LancePanel() {
             key={m}
             type="button"
             onClick={() => { setMode(m); setAmount(""); setErr(null); }}
-            className={`rounded-xl border px-3 py-2.5 text-sm font-semibold capitalize ${mode === m ? "border-yellow-400 bg-yellow-400/10 text-yellow-400" : "border-neutral-700 text-neutral-300"}`}
+            className={`rounded-xl border px-3 py-2.5 text-sm font-semibold capitalize ${mode === m ? "border-gold-400 bg-gold-400/10 text-gold-400" : "border-neutral-700 text-neutral-300"}`}
           >
             {m}
           </button>
@@ -156,7 +156,7 @@ export function LancePanel() {
         type="button"
         onClick={submit}
         disabled={!canSubmit}
-        className="w-full rounded-xl bg-yellow-400 px-4 py-3 font-semibold text-neutral-950 disabled:opacity-50"
+        className="w-full rounded-xl bg-gold-400 px-4 py-3 font-semibold text-neutral-950 disabled:opacity-50"
       >
         {busy ? "Working…" : isConnected ? (mode === "buy" ? "Buy $LANCE" : "Redeem to CELO") : "Connect a wallet"}
       </button>
