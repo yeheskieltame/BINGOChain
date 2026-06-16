@@ -24,12 +24,20 @@ export default function ArenasPage() {
         <ConnectButton />
       </div>
 
-      <Link
-        href="/create"
-        className="rounded-xl bg-yellow-400 px-4 py-3 text-center font-semibold text-neutral-950"
-      >
-        + Create arena
-      </Link>
+      <div className="grid grid-cols-2 gap-3">
+        <Link
+          href="/create"
+          className="rounded-xl bg-yellow-400 px-4 py-3 text-center font-semibold text-neutral-950"
+        >
+          + Create arena
+        </Link>
+        <Link
+          href="/profile"
+          className="rounded-xl border border-neutral-700 px-4 py-3 text-center font-semibold text-neutral-300 hover:border-neutral-500"
+        >
+          $LANCE wallet
+        </Link>
+      </div>
 
       {!loading && arenas.length > 0 && (
         <p className="text-xs text-neutral-500">
