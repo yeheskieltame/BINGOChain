@@ -8,6 +8,7 @@ import { bingoAbi, BINGO_ADDRESS, CHAIN_ID } from "../lib/bingo";
 import { useMiniPay } from "../hooks/useMiniPay";
 import { shortAddress } from "../lib/format";
 import { Button } from "../components/ui/button";
+import { LiveStats } from "../components/LiveStats";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const rise = (delay: number) => ({
@@ -70,7 +71,11 @@ export default function Home() {
         {isMiniPay && <p className="text-center text-xs text-state-open">MiniPay detected — auto-connected.</p>}
       </motion.div>
 
-      <motion.section {...rise(0.16)} className="grid grid-cols-3 gap-3">
+      <motion.div {...rise(0.16)}>
+        <LiveStats />
+      </motion.div>
+
+      <motion.section {...rise(0.22)} className="grid grid-cols-3 gap-3">
         {FEATURES.map(({ icon: Icon, title, desc }) => (
           <div key={title} className="glass rounded-xl p-3 text-center">
             <Icon className="mx-auto mb-2 size-5 text-gold-400" />

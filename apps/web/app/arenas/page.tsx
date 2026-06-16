@@ -1,56 +1,90 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useArenas } from "../../hooks/useArenas";
 import { ArenaCard } from "../../components/ArenaCard";
 import { ConnectButton } from "../../components/ConnectButton";
+import { Button } from "../../components/ui/button";
+import { Skeleton } from "../../components/ui/skeleton";
+import { cn } from "../../lib/utils";
 
-// Open/joinable arenas first, then by recency (id desc), so a crowded lobby
-// always surfaces the games a player can actually join at the top.
+// Open/joinable arenas first, then by recency (id desc).
 const STATE_ORDER: Record<string, number> = { created: 0, committed: 1, playing: 2, revealing: 3, settled: 4, cancelled: 5 };
+
+const FILTERS = [
+  { key: "all", label: "All", match: () => true },
+  { key: "open", label: "Open", match: (s: string) => s === "created" },
+  { key: "live", label: "Live", match: (s: string) => s === "playing" || s === "committed" },
+] as const;
 
 export default function ArenasPage() {
   const { arenas, loading, error } = useArenas();
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
+  const active = FILTERS.find((f) => f.key === filter)!;
 
-  const sorted = [...arenas].sort(
-    (a, b) => (STATE_ORDER[a.state] ?? 9) - (STATE_ORDER[b.state] ?? 9) || (a.id > b.id ? -1 : 1),
-  );
+  const sorted = [...arenas]
+    .sort((a, b) => (STATE_ORDER[a.state] ?? 9) - (STATE_ORDER[b.state] ?? 9) || (a.id > b.id ? -1 : 1))
+    .filter((a) => active.match(a.state));
   const openCount = arenas.filter((a) => a.state === "created").length;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-5 py-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-gold-400">Arenas</h1>
+        <h1 className="font-display text-2xl font-black text-foreground">Arenas</h1>
         <ConnectButton />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Link
-          href="/create"
-          className="rounded-xl bg-gold-400 px-4 py-3 text-center font-semibold text-neutral-950"
-        >
-          + Create arena
-        </Link>
-        <Link
-          href="/profile"
-          className="rounded-xl border border-neutral-700 px-4 py-3 text-center font-semibold text-neutral-300 hover:border-neutral-500"
-        >
-          $LANCE wallet
-        </Link>
+        <Button asChild size="lg">
+          <Link href="/create">+ Create arena</Link>
+        </Button>
+        <Button asChild variant="secondary" size="lg">
+          <Link href="/profile">Profile</Link>
+        </Button>
       </div>
 
-      {!loading && arenas.length > 0 && (
-        <p className="text-xs text-neutral-500">
-          {openCount} open · {arenas.length} recent
-        </p>
-      )}
+      <div className="flex items-center gap-2">
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setFilter(f.key)}
+            className={cn(
+              "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+              filter === f.key ? "bg-gold-400/15 text-gold-300" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {f.label}
+          </button>
+        ))}
+        {!loading && arenas.length > 0 && (
+          <span className="ml-auto font-mono text-xs text-muted-foreground">
+            {openCount} open · {arenas.length} recent
+          </span>
+        )}
+      </div>
 
       {error ? (
-        <p className="text-sm text-red-400">Couldn’t load arenas: {error}</p>
+        <p className="text-sm text-destructive">Couldn’t load arenas: {error}</p>
       ) : loading ? (
-        <p className="text-sm text-neutral-500">Loading…</p>
-      ) : arenas.length === 0 ? (
-        <p className="text-sm text-neutral-500">No arenas yet — create the first one.</p>
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-[88px] w-full rounded-xl" />
+          ))}
+        </div>
+      ) : sorted.length === 0 ? (
+        <div className="glass flex flex-col items-center gap-3 rounded-2xl p-10 text-center">
+          <p className="font-display text-lg font-bold text-foreground">
+            {arenas.length === 0 ? "No arenas yet" : "Nothing here"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {arenas.length === 0 ? "Be the first to open one." : "Try a different filter."}
+          </p>
+          <Button asChild>
+            <Link href="/create">+ Create arena</Link>
+          </Button>
+        </div>
       ) : (
         <div className="space-y-3">
           {sorted.map((a) => (
