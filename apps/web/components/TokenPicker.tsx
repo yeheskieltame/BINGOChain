@@ -6,7 +6,7 @@ type TokenKey = keyof typeof TOKENS;
 
 export function TokenPicker({ value, onChange }: { value: TokenKey; onChange: (t: TokenKey) => void }) {
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className="grid grid-cols-3 gap-2">
       {(Object.keys(TOKENS) as TokenKey[]).map((k) => (
         <button
           key={k}
