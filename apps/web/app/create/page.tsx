@@ -4,14 +4,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { decodeEventLog } from "viem";
 import { usePublicClient, useWriteContract } from "wagmi";
-import { bingoAbi, BINGO_ADDRESS, CHAIN_ID, MIN_PLAYERS, MAX_PLAYERS, TOKENS } from "../../lib/bingo";
+import { bingoAbi, BINGO_ADDRESS, CHAIN_ID, MIN_PLAYERS, MAX_PLAYERS, MIN_STAKE, TOKENS } from "../../lib/bingo";
 import { parseAmount } from "../../lib/format";
 import { TokenPicker } from "../../components/TokenPicker";
 import { ConnectButton } from "../../components/ConnectButton";
 
 export default function CreatePage() {
-  const [tokenKey, setTokenKey] = useState<keyof typeof TOKENS>("cUSD");
-  const [stake, setStake] = useState("1");
+  const [tokenKey, setTokenKey] = useState<keyof typeof TOKENS>("LANCE");
+  const [stake, setStake] = useState(MIN_STAKE.LANCE);
+
+  // switching token seeds the stake with that token's on-chain minimum
+  function pickToken(k: keyof typeof TOKENS) {
+    setTokenKey(k);
+    setStake(MIN_STAKE[k]);
+  }
   const [seats, setSeats] = useState(2);
   const [busy, setBusy] = useState(false);
   const { writeContractAsync } = useWriteContract();
@@ -55,7 +61,7 @@ export default function CreatePage() {
 
       <label className="space-y-2">
         <span className="text-sm text-neutral-400">Settlement token</span>
-        <TokenPicker value={tokenKey} onChange={setTokenKey} />
+        <TokenPicker value={tokenKey} onChange={pickToken} />
       </label>
 
       <label className="space-y-2">
