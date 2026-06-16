@@ -9,6 +9,10 @@ export const celo = defineChain({
   nativeCurrency: { name: "CELO", symbol: "CELO", decimals: 18 },
   rpcUrls: { default: { http: ["https://forno.celo.org"] } },
   blockExplorers: { default: { name: "Celoscan", url: "https://celoscan.io" } },
+  // Canonical Multicall3 (deployed at the same address on every chain incl. Celo).
+  // Lets the lobby batch many getArena() reads into one RPC call so it scales to
+  // hundreds of concurrent arenas without N round-trips.
+  contracts: { multicall3: { address: "0xcA11bde05977b3631167028862bE2a173976CA11" } },
 });
 
 /// Mainnet-only project. The deployed BingoChain proxy on Celo mainnet
