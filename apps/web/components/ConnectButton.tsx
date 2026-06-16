@@ -4,6 +4,7 @@ import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { Wallet } from "lucide-react";
 import { shortAddress } from "../lib/format";
 import { Button } from "./ui/button";
+import { PlayerAvatar } from "./PlayerAvatar";
 
 export function ConnectButton() {
   const { address, isConnected } = useAccount();
@@ -13,7 +14,7 @@ export function ConnectButton() {
   if (isConnected && address) {
     return (
       <Button variant="secondary" size="sm" onClick={() => disconnect()} className="font-mono text-gold-300">
-        <span className="size-2 rounded-full bg-state-open shadow-[0_0_8px_hsl(var(--state-open))]" />
+        <PlayerAvatar address={address} size={18} />
         {shortAddress(address)}
       </Button>
     );
