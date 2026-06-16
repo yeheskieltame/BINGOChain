@@ -10,7 +10,7 @@ export function BoardGrid({ board, called }: { board: number[]; called?: Set<num
           <div
             key={i}
             className={`flex aspect-square items-center justify-center rounded-lg text-sm font-bold ${
-              marked ? "bg-yellow-400 text-neutral-950" : "bg-neutral-800 text-neutral-300"
+              marked ? "bg-gold-400 text-neutral-950" : "bg-neutral-800 text-neutral-300"
             }`}
           >
             {n}

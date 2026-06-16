@@ -11,7 +11,7 @@ export default function ProfilePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-5 py-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-yellow-400">Wallet</h1>
+        <h1 className="text-2xl font-black text-gold-400">Wallet</h1>
         <ConnectButton />
       </div>
 

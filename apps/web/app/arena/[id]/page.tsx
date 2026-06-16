@@ -94,7 +94,7 @@ export default function ArenaPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-5 py-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-yellow-400">Arena #{id.toString()}</h1>
+        <h1 className="text-2xl font-black text-gold-400">Arena #{id.toString()}</h1>
         <ConnectButton />
       </div>
 
@@ -107,7 +107,7 @@ export default function ArenaPage() {
 
       {/* Created: join */}
       {state === 0 && !joined && (
-        <button type="button" onClick={() => run(join)} disabled={busy || !address} className="rounded-xl bg-yellow-400 px-4 py-3 font-semibold text-neutral-950 disabled:opacity-50">
+        <button type="button" onClick={() => run(join)} disabled={busy || !address} className="rounded-xl bg-gold-400 px-4 py-3 font-semibold text-neutral-950 disabled:opacity-50">
           {busy ? "Joining…" : "Generate board + join"}
         </button>
       )}
@@ -127,7 +127,7 @@ export default function ArenaPage() {
             <NumberPad called={calledSet} disabled={busy || !myTurn} onCall={(n) => run(() => write("callNumber", [id, n]))} />
           </div>
           {joined && (
-            <button type="button" onClick={() => run(() => write("claimBingo", [id]))} disabled={busy} className="rounded-xl border border-yellow-400 px-4 py-3 font-semibold text-yellow-400 disabled:opacity-50">
+            <button type="button" onClick={() => run(() => write("claimBingo", [id]))} disabled={busy} className="rounded-xl border border-gold-400 px-4 py-3 font-semibold text-gold-400 disabled:opacity-50">
               Claim BINGO
             </button>
           )}
@@ -138,7 +138,7 @@ export default function ArenaPage() {
       {state === 3 && (
         <>
           {mine ? (
-            <button type="button" onClick={() => run(() => write("revealBoard", [id, mine.board, mine.salt]))} disabled={busy} className="rounded-xl bg-yellow-400 px-4 py-3 font-semibold text-neutral-950 disabled:opacity-50">
+            <button type="button" onClick={() => run(() => write("revealBoard", [id, mine.board, mine.salt]))} disabled={busy} className="rounded-xl bg-gold-400 px-4 py-3 font-semibold text-neutral-950 disabled:opacity-50">
               Reveal my board
             </button>
           ) : (
@@ -157,7 +157,7 @@ export default function ArenaPage() {
             {state === 4 ? "Settled." : "Cancelled."} Your balance: {t ? formatAmount(earnings.data ?? 0n, t.decimals) : "0"} {t?.symbol}
           </p>
           {(earnings.data ?? 0n) > 0n && (
-            <button type="button" onClick={() => run(() => write("withdraw", [token]))} disabled={busy} className="rounded-xl bg-yellow-400 px-4 py-3 font-semibold text-neutral-950 disabled:opacity-50">
+            <button type="button" onClick={() => run(() => write("withdraw", [token]))} disabled={busy} className="rounded-xl bg-gold-400 px-4 py-3 font-semibold text-neutral-950 disabled:opacity-50">
               Withdraw
             </button>
           )}

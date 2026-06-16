@@ -4,39 +4,54 @@ import Link from "next/link";
 import { TOKENS } from "../lib/bingo";
 import { formatAmount } from "../lib/format";
 import type { ArenaState, ArenaSummary } from "../hooks/useArenas";
+import { Badge, type BadgeProps } from "./ui/badge";
 
 export function tokenInfo(addr: string) {
   return Object.values(TOKENS).find((t) => t.address.toLowerCase() === addr.toLowerCase());
 }
 
-const STATE_LABEL: Record<ArenaState, { text: string; className: string }> = {
-  created: { text: "Open", className: "bg-emerald-500/15 text-emerald-400" },
-  committed: { text: "Full", className: "bg-amber-500/15 text-amber-400" },
-  playing: { text: "Playing", className: "bg-sky-500/15 text-sky-400" },
-  revealing: { text: "Revealing", className: "bg-violet-500/15 text-violet-400" },
-  settled: { text: "Settled", className: "bg-neutral-600/20 text-neutral-400" },
-  cancelled: { text: "Cancelled", className: "bg-neutral-700/20 text-neutral-500" },
+const STATE: Record<ArenaState, { label: string; variant: BadgeProps["variant"] }> = {
+  created: { label: "Open", variant: "open" },
+  committed: { label: "Full", variant: "full" },
+  playing: { label: "Playing", variant: "playing" },
+  revealing: { label: "Revealing", variant: "revealing" },
+  settled: { label: "Settled", variant: "settled" },
+  cancelled: { label: "Cancelled", variant: "cancelled" },
 };
 
 export function ArenaCard({ arena }: { arena: ArenaSummary }) {
   const t = tokenInfo(arena.token);
-  const badge = STATE_LABEL[arena.state] ?? STATE_LABEL.created;
+  const s = STATE[arena.state] ?? STATE.created;
+  const live = arena.state === "playing" || arena.state === "created";
+
   return (
     <Link
       href={`/arena/${arena.id}`}
-      className="block rounded-2xl border border-neutral-800 bg-neutral-900 p-4 transition hover:border-neutral-600"
+      className="group glass glass-hover relative block overflow-hidden rounded-xl p-4 transition-transform duration-200 hover:-translate-y-0.5"
     >
       <div className="flex items-center justify-between">
-        <span className="font-bold text-yellow-400">Arena #{arena.id.toString()}</span>
-        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${badge.className}`}>{badge.text}</span>
+        <span className="font-display text-base font-bold text-foreground">
+          Arena <span className="font-mono text-gold-300">#{arena.id.toString()}</span>
+        </span>
+        <Badge variant={s.variant} dot={live}>
+          {s.label}
+        </Badge>
       </div>
-      <div className="mt-1 flex items-center justify-between text-sm text-neutral-400">
-        <span>
-          Stake {t ? formatAmount(arena.stake, t.decimals) : arena.stake.toString()} {t?.symbol ?? "token"}
-        </span>
-        <span className="text-xs text-neutral-500">
-          {arena.joinedCount}/{arena.maxPlayers} seats
-        </span>
+
+      <div className="mt-3 flex items-end justify-between">
+        <div>
+          <p className="text-[0.7rem] uppercase tracking-wider text-muted-foreground">Stake</p>
+          <p className="font-mono text-sm text-foreground">
+            {t ? formatAmount(arena.stake, t.decimals) : arena.stake.toString()}{" "}
+            <span className="text-muted-foreground">{t?.symbol ?? "token"}</span>
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-[0.7rem] uppercase tracking-wider text-muted-foreground">Seats</p>
+          <p className="font-mono text-sm text-foreground">
+            {arena.joinedCount}/{arena.maxPlayers}
+          </p>
+        </div>
       </div>
     </Link>
   );
