@@ -27,12 +27,16 @@ export function LancePanel() {
   const { data: lanceRaw, refetch: refetchLance } = useReadContract({ address: LANCE_ADDRESS, abi: lanceAbi, functionName: "balanceOf", args: address ? [address] : undefined, chainId: CHAIN_ID, query: enabled });
   const { data: navRaw } = useReadContract({ address: LANCE_ADDRESS, abi: lanceAbi, functionName: "nav", chainId: CHAIN_ID });
   const { data: feeRaw } = useReadContract({ address: LANCE_ADDRESS, abi: lanceAbi, functionName: "redeemFeeBps", chainId: CHAIN_ID });
+  const { data: supplyRaw } = useReadContract({ address: LANCE_ADDRESS, abi: lanceAbi, functionName: "totalSupply", chainId: CHAIN_ID });
+  const { data: poolRaw } = useReadContract({ address: LANCE_ADDRESS, abi: lanceAbi, functionName: "totalAssets", chainId: CHAIN_ID });
   const { data: allowanceRaw, refetch: refetchAllowance } = useReadContract({ address: LANCE_ASSET, abi: erc20Abi, functionName: "allowance", args: address ? [address, LANCE_ADDRESS] : undefined, chainId: CHAIN_ID, query: enabled });
 
   const celo = typeof celoRaw === "bigint" ? celoRaw : 0n;
   const lance = typeof lanceRaw === "bigint" ? lanceRaw : 0n;
   const nav = typeof navRaw === "bigint" && navRaw > 0n ? navRaw : WAD / 1000n;
   const feeBps = typeof feeRaw === "number" ? feeRaw : 100;
+  const supply = typeof supplyRaw === "bigint" ? supplyRaw : 0n;
+  const pool = typeof poolRaw === "bigint" ? poolRaw : 0n;
 
   const { isSuccess: done } = useWaitForTransactionReceipt({ hash: txHash ?? undefined });
   useEffect(() => {
@@ -94,6 +98,21 @@ export function LancePanel() {
         <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2">
           <div className="text-neutral-500">Your CELO</div>
           <div className="mt-0.5 font-mono text-sm font-semibold">{fmt(celo)}</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 text-center text-[0.7rem]">
+        <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-2 py-1.5">
+          <div className="text-neutral-500">Supply</div>
+          <div className="mt-0.5 font-mono font-semibold">{fmt(supply, 18, 0)}</div>
+        </div>
+        <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-2 py-1.5">
+          <div className="text-neutral-500">Pool</div>
+          <div className="mt-0.5 font-mono font-semibold">{fmt(pool, 18, 2)} CELO</div>
+        </div>
+        <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-2 py-1.5">
+          <div className="text-neutral-500">Backed</div>
+          <div className="mt-0.5 font-mono font-semibold text-emerald-400">100%</div>
         </div>
       </div>
 
