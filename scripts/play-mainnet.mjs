@@ -562,6 +562,82 @@ async function settlePending() {
   log(`settle-pending done: scanned ${scanned} arenas, settled ${settled}, still-pending ${pending}`);
 }
 
+// ── competition: volume-leaderboard tournament ────────────────────────────────
+// P participants each play a random 1..GMAX games. Played in ROUNDS (each
+// participant ≤1 arena per round → no same-wallet nonce collision; "round" = the
+// "10 rounds" notion). Ranked by VOLUME (games × stake), NOT wins. Top TOP_N win
+// $LANCE. Emits competition-<tag>.json (leaderboard) for the BingoChain comp page.
+async function competition() {
+  const P = Number(process.env.PARTICIPANTS || 25);
+  const GMIN = Number(process.env.GAMES_MIN || 1);
+  const GMAX = Number(process.env.GAMES_MAX || 8);
+  const TOPN = Number(process.env.TOP_N || 10);
+  const PRIZE = parseEther(process.env.PRIZE_EACH || "20"); // $LANCE per winner
+  const tag = process.env.RUN_TAG || "comp";
+  const rb = (n) => randomBytes(1)[0] % n;
+
+  const pool = shuffle(loadPool());
+  if (P > pool.length) throw new Error(`need ${P} participants, pool has ${pool.length}`);
+  const parts = pool.slice(0, P).map((p) => ({ ...p, target: GMIN + rb(GMAX - GMIN + 1), remaining: 0, played: 0 }));
+  parts.forEach((p) => { p.remaining = p.target; });
+  log(`competition: ${P} participants, targets ${parts.map((p) => p.target).join(",")}`);
+
+  // top up gas for up to GMAX games each (recoverable via pool-skim after)
+  const gasFloor = parseEther(String(Math.max(0.5, GMAX * 0.15 + 0.2)));
+  let nonce = await pub.getTransactionCount({ address: deployer.address });
+  const fh = [];
+  for (const p of parts) { const b = await pub.getBalance({ address: p.account.address }); if (b < gasFloor) fh.push(await wallet(deployer).sendTransaction({ to: p.account.address, value: gasFloor - b, gas: GAS.fund, nonce: nonce++, ...FEE })); }
+  for (const h of fh) await pub.waitForTransactionReceipt({ hash: h, timeout: 180000 });
+  log(`gas topped ${fh.length}/${P} to ${formatEther(gasFloor)} CELO`);
+
+  const settleTxs = [];
+  for (let round = 0; round < GMAX; round++) {
+    const avail = shuffle(parts.filter((p) => p.remaining > 0));
+    if (avail.length < 2) break;
+    const groups = [];
+    for (let i = 0; i < avail.length && avail.length - i >= 2; ) {
+      let size = Math.min(avail.length - i, 2 + rb(4)); // 2..5
+      if (avail.length - (i + size) === 1) size++; // never strand 1
+      groups.push(avail.slice(i, i + size)); i += size;
+    }
+    groups.forEach((g) => g.forEach((p) => p.remaining--));
+    log(`round ${round + 1}: ${groups.length} arenas, ${groups.flat().length} players`);
+    const res = await Promise.allSettled(groups.map((g, idx) =>
+      runArena(`r${round}a${idx}`, g.map((p) => ({ ...p, board: shuffledBoard(), salt: `0x${randomBytes(32).toString("hex")}` })), tag)));
+    res.forEach((r, idx) => {
+      if (r.status === "fulfilled" && r.value?.settle?.winnerCount !== undefined) {
+        groups[idx].forEach((p) => { const part = parts.find((x) => x.account.address === p.account.address); part.played++; });
+        if (r.value.timeline) { const ev = r.value.timeline.find((e) => e.type === "ArenaSettled"); if (ev?.tx) settleTxs.push(ev.tx); }
+      }
+    });
+  }
+
+  // rank by volume (= played × stake)
+  parts.forEach((p) => { p.volume = STAKE * BigInt(p.played); });
+  parts.sort((a, b) => (b.volume > a.volume ? 1 : b.volume < a.volume ? -1 : 0));
+  const winners = parts.slice(0, TOPN).filter((p) => p.played > 0);
+  log(`leaderboard (top ${TOPN} by volume): ${winners.map((p) => `${p.account.address.slice(0, 8)}=${formatEther(p.volume)}`).join(", ")}`);
+
+  // pay winners in $LANCE
+  const erc20 = [{ type: "function", name: "transfer", stateMutability: "nonpayable", inputs: [{ name: "t", type: "address" }, { name: "v", type: "uint256" }], outputs: [{ type: "bool" }] }];
+  nonce = await pub.getTransactionCount({ address: deployer.address });
+  for (const w of winners) {
+    const h = await wallet(deployer).writeContract({ address: STAKE_TOKEN, abi: erc20, functionName: "transfer", args: [w.account.address, PRIZE], gas: 80000n, nonce: nonce++, ...FEE });
+    w.prizeTx = h;
+  }
+  for (const w of winners) { await pub.waitForTransactionReceipt({ hash: w.prizeTx, timeout: 120000 }); }
+  log(`paid ${winners.length} winners ${formatEther(PRIZE)} $LANCE each`);
+
+  mkdirSync(join(__dir, "out"), { recursive: true });
+  const out = {
+    competition: tag, stake: formatEther(STAKE), prizePerWinner: formatEther(PRIZE), topN: TOPN,
+    participants: parts.map((p, i) => ({ rank: i + 1, address: p.account.address, games: p.played, volume: formatEther(p.volume), won: winners.includes(p), prizeTx: p.prizeTx || null })),
+    totalGames: parts.reduce((s, p) => s + p.played, 0), totalVolume: formatEther(parts.reduce((s, p) => s + p.volume, 0n)), settleTxs,
+  };
+  writeFileSync(join(__dir, "out", `competition-${tag}.json`), JSON.stringify(out, null, 2));
+  log(`competition done: ${out.totalGames} games, ${out.totalVolume} $LANCE volume, ${winners.length} winners paid → out/competition-${tag}.json`);
+}
+
 const mode = process.argv[2] || "check";
 const arg = process.argv[3];
 const arg2 = process.argv[4];
@@ -575,4 +651,5 @@ else if (mode === "pool-skim") poolSkim(arg || "0").then(() => process.exit(0));
 else if (mode === "wave") wave(Number(arg || 5)).then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
 else if (mode === "resume") resume(arg).then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
 else if (mode === "settle-pending") settlePending().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
+else if (mode === "competition") competition().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
 else { console.error("usage: play-mainnet.mjs check|run|sweep <file>|pool-init <n>|pool-fund <floor> [count]|pool-status|pool-skim <keep>|wave <numArenas>|resume <tag>|settle-pending"); process.exit(1); }
