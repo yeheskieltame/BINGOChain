@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useAccount } from "wagmi";
 import { LancePanel } from "../../components/LancePanel";
 import { ConnectButton } from "../../components/ConnectButton";
+import { ProfileEditor } from "../../components/ProfileEditor";
+import { PlayerStatsCard } from "../../components/PlayerStatsCard";
 
 export default function ProfilePage() {
   const { address, isConnected } = useAccount();
@@ -11,24 +13,27 @@ export default function ProfilePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-5 py-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-gold-400">Wallet</h1>
+        <h1 className="font-display text-2xl font-black text-foreground">Profile</h1>
         <ConnectButton />
       </div>
 
-      <Link href="/arenas" className="text-sm text-neutral-400 hover:text-neutral-200">← Back to arenas</Link>
+      <Link href="/arenas" className="text-sm text-muted-foreground hover:text-foreground">
+        ← Back to arenas
+      </Link>
 
       {isConnected && address ? (
         <>
-          <p className="break-all rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 font-mono text-xs text-neutral-400">
-            {address}
-          </p>
-          <LancePanel />
-          <p className="text-xs text-neutral-600">
-            $LANCE is the shared economy credit — buy it with CELO, use it to play arenas, redeem it back anytime.
-          </p>
+          <ProfileEditor />
+          <PlayerStatsCard />
+          <div className="space-y-2">
+            <h2 className="font-display text-sm font-bold uppercase tracking-wider text-muted-foreground">
+              $LANCE wallet
+            </h2>
+            <LancePanel />
+          </div>
         </>
       ) : (
-        <p className="text-sm text-neutral-500">Connect your wallet to buy or redeem $LANCE.</p>
+        <p className="text-sm text-muted-foreground">Connect your wallet to set up your profile and manage $LANCE.</p>
       )}
     </main>
   );
