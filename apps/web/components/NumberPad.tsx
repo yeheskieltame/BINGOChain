@@ -1,33 +1,43 @@
 "use client";
 
+import { motion } from "motion/react";
+import { cn } from "../lib/utils";
+
 /// 1..25 grid for calling numbers. Already-called numbers are disabled.
 export function NumberPad({
   called,
   disabled,
   onCall,
+  lastCalled,
 }: {
   called: Set<number>;
   disabled?: boolean;
   onCall: (n: number) => void;
+  lastCalled?: number;
 }) {
   return (
     <div className="grid grid-cols-5 gap-1.5">
       {Array.from({ length: 25 }, (_, i) => i + 1).map((n) => {
         const used = called.has(n);
         return (
-          <button
+          <motion.button
             key={n}
             type="button"
             disabled={used || disabled}
             onClick={() => onCall(n)}
-            className={`aspect-square rounded-lg text-sm font-bold transition ${
+            whileTap={{ scale: 0.92 }}
+            className={cn(
+              "relative aspect-square rounded-lg font-mono text-sm font-bold transition-colors",
               used
-                ? "bg-neutral-800 text-neutral-600"
-                : "bg-neutral-700 text-neutral-100 enabled:hover:bg-gold-400 enabled:hover:text-neutral-950 disabled:opacity-40"
-            }`}
+                ? "bg-card/40 text-muted-foreground/40"
+                : "border border-white/[0.06] bg-card/70 text-foreground enabled:hover:border-gold-400/40 enabled:hover:text-gold-300 disabled:opacity-40",
+            )}
           >
+            {used && n === lastCalled && (
+              <span className="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-gold-300/60" />
+            )}
             {n}
-          </button>
+          </motion.button>
         );
       })}
     </div>
