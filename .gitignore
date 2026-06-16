@@ -12,3 +12,7 @@ apps/web/.next/
 apps/web/out/
 apps/web/next-env.d.ts
 *.tsbuildinfo
+
+# Local operator play-harness output — holds generated wallet PRIVATE KEYS,
+# game state, logs, results. NEVER commit.
+scripts/out/
