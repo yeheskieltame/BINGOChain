@@ -5,13 +5,15 @@ import { useParams } from "next/navigation";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { bingoAbi, BINGO_ADDRESS, CHAIN_ID } from "../../../lib/bingo";
 import { commitment, randomBoard, randomSalt, completedLines } from "../../../lib/board";
-import { formatAmount } from "../../../lib/format";
+import { formatAmount, shortAddress } from "../../../lib/format";
+import { cn } from "../../../lib/utils";
 import { useArena } from "../../../hooks/useArena";
 import { useToken } from "../../../hooks/useToken";
 import { tokenInfo } from "../../../components/ArenaCard";
 import { BoardGrid } from "../../../components/BoardGrid";
 import { NumberPad } from "../../../components/NumberPad";
 import { ConnectButton } from "../../../components/ConnectButton";
+import { PlayerAvatar } from "../../../components/PlayerAvatar";
 
 type Saved = { board: number[]; salt: `0x${string}` };
 
@@ -104,6 +106,36 @@ export default function ArenaPage() {
           {arena.joinedCount}/{arena.maxPlayers} · {t ? formatAmount(arena.stake, t.decimals) : ""} {t?.symbol}
         </span>
       </div>
+
+      {players.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+            Players · {players.length}/{arena.maxPlayers}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {players.map((p, i) => {
+              const isTurn = (state === 1 || state === 2) && Number(arena.turnIndex) === i;
+              const isMe = p.toLowerCase() === address?.toLowerCase();
+              return (
+                <div
+                  key={p}
+                  className={cn(
+                    "glass flex items-center gap-2 rounded-full py-1 pl-1 pr-3",
+                    isTurn && "ring-1 ring-gold-400/60",
+                  )}
+                >
+                  <PlayerAvatar address={p} size={22} />
+                  <span className="font-mono text-xs text-foreground">
+                    {shortAddress(p)}
+                    {isMe && <span className="text-gold-300"> · you</span>}
+                  </span>
+                  {isTurn && <span className="size-1.5 animate-pulse rounded-full bg-gold-400" />}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Created: join */}
       {state === 0 && !joined && (

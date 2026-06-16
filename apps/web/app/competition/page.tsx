@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Player } from "../../components/Player";
 
 type Row = { rank: number; address: string; games: number; volume: string; won: boolean; prizeTx: string | null };
 type Comp = {
@@ -15,8 +16,6 @@ type Comp = {
   bountyId?: string;
   claudelanceUrl?: string;
 };
-
-const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
 /** BingoChain Volume Cup — the competition spec + LIVE leaderboard. The client
  *  (BingoChain) hosts this; the Claudelance bounty anchors its hash on-chain.
@@ -82,7 +81,7 @@ export default function CompetitionPage() {
                 {c.participants.map((p) => (
                   <tr key={p.address} className={`border-t border-neutral-800 ${p.won ? "bg-gold-400/[0.06]" : ""}`}>
                     <td className="px-4 py-2.5 font-mono">{p.won ? "🏆" : ""} {p.rank}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-neutral-300">{short(p.address)}</td>
+                    <td className="px-4 py-2.5"><Player address={p.address} size="sm" /></td>
                     <td className="px-4 py-2.5 text-right font-mono">{p.games}</td>
                     <td className="px-4 py-2.5 text-right font-mono font-semibold">{p.volume}</td>
                   </tr>
