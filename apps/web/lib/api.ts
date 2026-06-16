@@ -34,6 +34,9 @@ export const getPlayer = (address: string) =>
 export const getLeaderboard = (limit = 50) =>
   fetch(`${API_URL}/api/leaderboard?limit=${limit}`, { cache: "no-store" }).then(asJson<LeaderboardRow[]>);
 
+export type Stats = { games: number; players: number; volume: string; prizesPaid: string };
+export const getStats = () => fetch(`${API_URL}/api/stats`, { cache: "no-store" }).then(asJson<Stats>);
+
 export const getNonce = (address: string) =>
   fetch(`${API_URL}/api/auth/nonce/${address}`, { cache: "no-store" }).then(asJson<{ nonce: string; message: string }>);
 
