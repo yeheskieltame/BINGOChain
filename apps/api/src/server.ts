@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { formatEther } from "viem";
 import pg from "pg";
 import { startIndexer } from "./indexer.ts";
+import { registerProfileRoutes } from "./profiles.ts";
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
@@ -103,6 +104,8 @@ app.get<{ Params: { address: string } }>("/api/profile/:address", async (req, re
   if (!rows[0]) return reply.code(404).send({ error: "not_found", address });
   return rows[0];
 });
+
+registerProfileRoutes(app, pool);
 
 async function migrate() {
   if (!connectionString) {
