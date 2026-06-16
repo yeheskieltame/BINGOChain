@@ -20,6 +20,21 @@ const clean = (s: unknown, max: number): string | null => {
 };
 
 export function registerProfileRoutes(app: FastifyInstance, pool: Pool) {
+  // Batch profile lookup so the UI can resolve many addresses → names in one call.
+  app.get<{ Querystring: { addresses?: string } }>("/api/profiles", async (req) => {
+    const addrs = (req.query.addresses ?? "")
+      .split(",")
+      .map((a) => a.trim().toLowerCase())
+      .filter((a) => isAddress(a))
+      .slice(0, 100);
+    if (!addrs.length) return [];
+    const { rows } = await pool.query(
+      "select address, name, avatar_seed from players where address = any($1) and name is not null",
+      [addrs],
+    );
+    return rows;
+  });
+
   app.get<{ Params: { address: string } }>("/api/auth/nonce/:address", async (req, reply) => {
     const address = req.params.address.toLowerCase();
     if (!isAddress(address)) return reply.code(400).send({ error: "bad_address" });

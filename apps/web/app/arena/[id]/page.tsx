@@ -14,6 +14,7 @@ import { BoardGrid } from "../../../components/BoardGrid";
 import { NumberPad } from "../../../components/NumberPad";
 import { ConnectButton } from "../../../components/ConnectButton";
 import { PlayerAvatar } from "../../../components/PlayerAvatar";
+import { useProfiles } from "../../../hooks/useProfiles";
 
 type Saved = { board: number[]; salt: `0x${string}` };
 
@@ -30,6 +31,7 @@ export default function ArenaPage() {
   const id = BigInt(useParams<{ id: string }>().id);
   const { address } = useAccount();
   const { arena, players, calls, refetch } = useArena(id);
+  const names = useProfiles(players);
   const [busy, setBusy] = useState(false);
   const { writeContractAsync } = useWriteContract();
 
@@ -125,8 +127,8 @@ export default function ArenaPage() {
                   )}
                 >
                   <PlayerAvatar address={p} size={22} />
-                  <span className="font-mono text-xs text-foreground">
-                    {shortAddress(p)}
+                  <span className={names[p.toLowerCase()] ? "text-xs font-medium text-foreground" : "font-mono text-xs text-foreground"}>
+                    {names[p.toLowerCase()] ?? shortAddress(p)}
                     {isMe && <span className="text-gold-300"> · you</span>}
                   </span>
                   {isTurn && <span className="size-1.5 animate-pulse rounded-full bg-gold-400" />}
