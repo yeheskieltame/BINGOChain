@@ -48,5 +48,13 @@ CREATE TABLE IF NOT EXISTS indexer_state (
   updated_at      timestamptz NOT NULL DEFAULT now()
 );
 
+-- Decoded revealed boards (from the revealBoard tx input) for post-game transparency.
+CREATE TABLE IF NOT EXISTS revealed_boards (
+  arena_id       bigint    NOT NULL,
+  player_address text      NOT NULL,
+  board          integer[] NOT NULL,
+  PRIMARY KEY (arena_id, player_address)
+);
+
 CREATE INDEX IF NOT EXISTS idx_player_matches_player ON player_matches (player_address);
 CREATE INDEX IF NOT EXISTS idx_player_stats_volume   ON player_stats (total_volume DESC);
