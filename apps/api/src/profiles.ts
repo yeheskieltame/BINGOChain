@@ -65,7 +65,7 @@ export function registerProfileRoutes(app: FastifyInstance, pool: Pool) {
     const address = req.params.address.toLowerCase();
     if (!isAddress(address)) return reply.code(400).send({ error: "bad_address" });
 
-    const { name, avatarSeed, bio, signature } = req.body ?? {};
+    const { name, avatarSeed, avatarUrl, bio, signature } = req.body ?? {};
     if (!signature) return reply.code(400).send({ error: "signature_required" });
 
     const entry = nonces.get(address);
@@ -85,12 +85,13 @@ export function registerProfileRoutes(app: FastifyInstance, pool: Pool) {
     nonces.delete(address); // single-use
 
     const { rows } = await pool.query(
-      `insert into players(address, name, avatar_seed, bio, updated_at)
-       values($1,$2,$3,$4, now())
+      `insert into players(address, name, avatar_seed, avatar_url, bio, updated_at)
+       values($1,$2,$3,$4,$5, now())
        on conflict (address) do update set
-         name=excluded.name, avatar_seed=excluded.avatar_seed, bio=excluded.bio, updated_at=now()
-       returning address, name, avatar_seed, bio`,
-      [address, clean(name, 32), clean(avatarSeed, 64), clean(bio, 200)],
+         name=excluded.name, avatar_seed=excluded.avatar_seed,
+         avatar_url=excluded.avatar_url, bio=excluded.bio, updated_at=now()
+       returning address, name, avatar_seed, avatar_url, bio`,
+      [address, clean(name, 32), clean(avatarSeed, 64), cleanAvatar(avatarUrl), clean(bio, 200)],
     );
     return rows[0];
   });
