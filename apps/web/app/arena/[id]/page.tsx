@@ -262,7 +262,13 @@ export default function ArenaPage() {
       {/* Revealing: reveal + settle */}
       {state === 3 && (
         <>
-          {mine ? (
+          {savedMismatch ? (
+            <p className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              Your saved board for this arena doesn&apos;t match what you committed on-chain, so it can&apos;t be
+              revealed (the saved copy was overwritten on this device). Nothing to do here; the arena settles
+              automatically once the reveal window ends.
+            </p>
+          ) : mine ? (
             <Button onClick={() => run(() => write("revealBoard", [id, mine.board, mine.salt]))} disabled={busy} size="lg">
               Reveal my board
             </Button>
