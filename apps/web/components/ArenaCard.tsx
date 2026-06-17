@@ -56,17 +56,17 @@ export function ArenaCard({ arena }: { arena: ArenaSummary }) {
         </Badge>
       </div>
 
-      <div className="relative mt-5 flex items-end justify-between gap-4">
+      <div className="relative mt-5 flex items-end justify-between gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
         <div>
-          <p className="font-mono text-[0.65rem] uppercase tracking-[0.22em] text-muted-foreground">Stake</p>
-          <p className="mt-1.5 font-mono text-xl font-semibold leading-none text-cream">
+          <p className="font-mono text-[0.6rem] uppercase tracking-[0.22em] text-muted-foreground">Stake</p>
+          <p className="mt-1.5 font-mono text-2xl font-semibold leading-none text-cream">
             {t ? formatAmount(arena.stake, t.decimals) : arena.stake.toString()}
-            <span className="ml-1 text-sm font-normal text-muted-foreground">{t?.symbol ?? "token"}</span>
+            <span className="ml-1 text-xs font-normal text-muted-foreground">{t?.symbol ?? "token"}</span>
           </p>
         </div>
         <div className="text-right">
-          <p className="font-mono text-[0.65rem] uppercase tracking-[0.22em] text-muted-foreground">Seats</p>
-          <p className="mt-1.5 font-mono text-xl font-semibold leading-none text-cream">
+          <p className="font-mono text-[0.6rem] uppercase tracking-[0.22em] text-muted-foreground">Seats</p>
+          <p className="mt-1.5 font-mono text-2xl font-semibold leading-none text-cream">
             {arena.joinedCount}
             <span className="text-muted-foreground">/{arena.maxPlayers}</span>
           </p>
