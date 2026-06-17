@@ -68,13 +68,23 @@ CREATE TABLE IF NOT EXISTS revealed_boards (
 );
 
 -- Referrals: who invited whom. One inviter per invited wallet (referree is PK),
--- never self. Social-only in v1 — drives invite counts + a referral leaderboard;
--- no on-chain reward.
+-- never self. Recording is SIWE-gated (the referree signs) now that a reward is
+-- attached: the inviter earns $LANCE once the referree qualifies (plays a settled
+-- game). Reward is off-chain, operator-funded — tracked here, paid out manually.
 CREATE TABLE IF NOT EXISTS referrals (
   referree   text PRIMARY KEY,            -- the invited wallet (can be referred once)
   referrer   text NOT NULL,               -- the inviter wallet
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Reward tracking columns, added idempotently (schema.sql runs on every boot).
+-- A referree "qualifies" once they have a settled game; the inviter then earns a
+-- flat whole-$LANCE reward, paid out off-chain (reward_tx records the payout).
+ALTER TABLE referrals ADD COLUMN IF NOT EXISTS qualified     boolean     NOT NULL DEFAULT false;
+ALTER TABLE referrals ADD COLUMN IF NOT EXISTS qualified_at  timestamptz;
+ALTER TABLE referrals ADD COLUMN IF NOT EXISTS reward_amount numeric     NOT NULL DEFAULT 0;  -- whole $LANCE (e.g. 25)
+ALTER TABLE referrals ADD COLUMN IF NOT EXISTS reward_paid   boolean     NOT NULL DEFAULT false;
+ALTER TABLE referrals ADD COLUMN IF NOT EXISTS reward_tx     text;
 
 CREATE INDEX IF NOT EXISTS idx_player_matches_player ON player_matches (player_address);
 CREATE INDEX IF NOT EXISTS idx_player_stats_volume   ON player_stats (total_volume DESC);

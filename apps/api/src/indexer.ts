@@ -1,6 +1,7 @@
 import { createPublicClient, decodeFunctionData, http, parseAbiItem } from "viem";
 import { celo } from "viem/chains";
 import type { Pool } from "pg";
+import { refreshReferralQualifications } from "./referrals.ts";
 
 // Indexes BINGOChain on-chain events into Postgres. Backfills from the proxy's
 // creation block in chunks (forno rejects wide eth_getLogs ranges), then polls
@@ -198,5 +199,13 @@ export async function startIndexer(pool: Pool, log: Logger) {
   await recomputeStats().catch((e) => log.error(e, "indexer: initial recompute failed"));
   await tick().catch((e) => log.error(e, "indexer backfill error"));
   await backfillBoards().catch((e) => log.error(e, "indexer: board backfill error"));
-  setInterval(() => void tick().catch((e) => log.error(e, "indexer tick error")), POLL_MS);
+  // Credit referral rewards for any newly-settled referrees indexed in the backfill.
+  await refreshReferralQualifications(pool).catch((e) => log.error(e, "indexer: referral refresh failed"));
+  setInterval(
+    () =>
+      void tick()
+        .then(() => refreshReferralQualifications(pool))
+        .catch((e) => log.error(e, "indexer tick error")),
+    POLL_MS,
+  );
 }
