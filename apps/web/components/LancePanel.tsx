@@ -86,8 +86,8 @@ export function LancePanel() {
   return (
     <div className="glass space-y-4 rounded-2xl p-5">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-lg font-black text-gold-400">$LANCE</h2>
-        <span className="text-xs text-neutral-500">~{rate} LANCE / CELO</span>
+        <h2 className="font-anton text-lg uppercase tracking-tight text-neon">$LANCE</h2>
+        <span className="font-mono text-xs text-muted-foreground">~{rate} LANCE / CELO</span>
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-center text-xs">
