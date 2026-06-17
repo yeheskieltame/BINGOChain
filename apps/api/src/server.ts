@@ -197,13 +197,17 @@ app.get<{ Params: { address: string } }>("/api/profile/:address", async (req, re
 registerProfileRoutes(app, pool);
 registerReferralRoutes(app, pool);
 
-// Seed the Cup events: one ongoing (live) + one ended (past). Idempotent.
+// Seed the Cup events. Several run concurrently with DIFFERENT windows (daily /
+// weekend / weekly), so each "live" cup ranks a different slice of volume rather
+// than duplicating one leaderboard. Plus one ended cup. Idempotent.
 async function seedCompetitions() {
   if (!connectionString) return;
   await pool.query(`
     insert into competitions(id, title, starts_at, ends_at, prize_per_winner, top_n, token) values
-      ('weekly-1', 'Weekly Volume Cup', now() - interval '2 days', now() + interval '5 days', 20, 10, '$LANCE'),
-      ('cup-1', 'Volume Cup #1', timestamptz '2026-06-16 00:00:00+00', timestamptz '2026-06-16 12:00:00+00', 20, 10, '$LANCE')
+      ('weekly-1',  'Weekly Volume Cup', now() - interval '2 days',  now() + interval '5 days',  20, 10, '$LANCE'),
+      ('daily-1',   'Daily Sprint',      now() - interval '12 hours', now() + interval '12 hours', 10, 5,  '$LANCE'),
+      ('weekend-1', 'Weekend Showdown',  now() - interval '1 day',   now() + interval '2 days',  15, 8,  '$LANCE'),
+      ('cup-1',     'Volume Cup #1',     timestamptz '2026-06-16 00:00:00+00', timestamptz '2026-06-16 12:00:00+00', 20, 10, '$LANCE')
     on conflict (id) do nothing
   `);
 }
