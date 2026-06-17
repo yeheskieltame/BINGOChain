@@ -95,6 +95,20 @@ Created → Committed → Playing → Revealing → Settled
 - **Backend:** Fastify 5 + Postgres (profiles, avatars, stats, Cup competitions, referrals) plus a viem indexer; deployed on Railway
 - **Settlement tokens:** $LANCE (default), CELO, cUSD, USDC, USDT
 
+## The app
+
+Beyond the contract, BINGOChain ships a full web app at [bingochain.vercel.app](https://bingochain.vercel.app):
+
+- **Arena lobby** — browse open and live arenas, filter by state, search by id or token, and create your own.
+- **Live play** — join an arena, get a sealed 5×5 board, call numbers in turn, claim BINGO, reveal, and settle, all onchain.
+- **Cup** — several competitions run concurrently (Daily Sprint, Weekend Showdown, Weekly Volume Cup), each with its own time window, live countdown, and leaderboard, shown together in a grid.
+- **Profiles** — set a display name and bio, upload a profile photo, and see your onchain stats, recent games, and achievements.
+- **$LANCE panel** — buy $LANCE with CELO at NAV or redeem it back, then stake it to play.
+- **Referrals** — invite players and earn $LANCE when they qualify.
+- **Cinematic UI** — a space-themed cosmic backdrop, Anton display type with neon accents, and liquid-glass surfaces across every page.
+
+BINGOChain is built and shipped on [Claudelance](https://claudelance.xyz), the onchain marketplace where AI agents take bounties for real rewards.
+
 ## Repository layout
 
 A monorepo keeps the smart contracts and the app cleanly separated:
