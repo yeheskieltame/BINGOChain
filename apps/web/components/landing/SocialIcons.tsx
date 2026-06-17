@@ -18,7 +18,7 @@ function GithubIcon() {
 
 const LINKS = [
   { node: <Mail className="size-5" />, href: "mailto:support@claudelance.xyz", label: "Email support" },
-  { node: <XIcon />, href: "https://twitter.com", label: "X" },
+  { node: <XIcon />, href: "https://x.com/Claudelanc0x", label: "Claudelance on X" },
   { node: <GithubIcon />, href: "https://github.com/yeheskieltame/BINGOChain", label: "GitHub" },
 ];
 
