@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePublicClient } from "wagmi";
 import { bingoAbi, BINGO_ADDRESS, CHAIN_ID } from "../lib/bingo";
+import { API_URL } from "../lib/api";
 
 /// GameState enum, mirrored from the contract (BingoTypes.GameState).
 export const ARENA_STATES = ["created", "committed", "playing", "revealing", "settled", "cancelled"] as const;
@@ -18,15 +19,12 @@ export type ArenaSummary = {
   state: ArenaState;
 };
 
-// forno (and most public RPCs) reject huge eth_getLogs ranges, so the scan walks
-// backward in safe chunks and stops once it has enough recent arenas. Without
-// chunking, a single wide range silently fails — fatal once the contract has
-// weeks of history and the lobby holds hundreds of concurrent arenas.
-const LOG_CHUNK = 10_000n;
-const MAX_SCAN_BLOCKS = 300_000n;
 const MAX_ARENAS = 60;
 const REFRESH_MS = 15_000;
 
+// forno rejects eth_getLogs from the browser ("not whitelisted"), so the lobby
+// gets the recent arena ids from the backend index, then reads live state with a
+// single batched multicall (eth_call, which IS whitelisted).
 export function useArenas() {
   const client = usePublicClient({ chainId: CHAIN_ID });
   const [arenas, setArenas] = useState<ArenaSummary[]>([]);
@@ -37,68 +35,54 @@ export function useArenas() {
     async (signal?: { aborted: boolean }) => {
       if (!client) return;
       try {
-        const latest = await client.getBlockNumber();
-        const floor = latest > MAX_SCAN_BLOCKS ? latest - MAX_SCAN_BLOCKS : 0n;
+        const res = await fetch(`${API_URL}/api/arenas?limit=${MAX_ARENAS}`, { cache: "no-store" });
+        if (!res.ok) throw new Error(`api ${res.status}`);
+        const ids = (await res.json()) as string[];
+        if (signal?.aborted) return;
+        if (!ids.length) {
+          setArenas([]);
+          setError(null);
+          return;
+        }
 
-        // newest → oldest in chunks, until we have MAX_ARENAS or run out of range
-        const created: Omit<ArenaSummary, "joinedCount" | "state">[] = [];
-        let to = latest;
-        while (to >= floor && created.length < MAX_ARENAS) {
-          const from = to > floor + LOG_CHUNK ? to - LOG_CHUNK : floor;
-          const logs = await client.getContractEvents({
+        const results = await client.multicall({
+          allowFailure: true,
+          contracts: ids.map((id) => ({
             address: BINGO_ADDRESS,
             abi: bingoAbi,
-            eventName: "ArenaCreated",
-            fromBlock: from,
-            toBlock: to,
-          });
-          for (const l of logs.reverse()) {
-            created.push({
-              id: l.args.arenaId as bigint,
-              creator: l.args.creator as `0x${string}`,
-              token: l.args.token as `0x${string}`,
-              stake: l.args.stake as bigint,
-              maxPlayers: Number(l.args.maxPlayers),
-            });
-          }
-          if (from === floor) break;
-          to = from - 1n;
-        }
+            functionName: "getArena",
+            args: [BigInt(id)],
+          })),
+        });
         if (signal?.aborted) return;
 
-        const recent = created.slice(0, MAX_ARENAS);
-
-        // enrich with live state (one batched multicall, not N round-trips)
-        let enriched: ArenaSummary[];
-        try {
-          const results = await client.multicall({
-            allowFailure: true,
-            contracts: recent.map((a) => ({
-              address: BINGO_ADDRESS,
-              abi: bingoAbi,
-              functionName: "getArena",
-              args: [a.id],
-            })),
-          });
-          enriched = recent.map((a, i) => {
+        const enriched = ids
+          .map((id, i) => {
             const r = results[i];
-            const ar = r?.status === "success" ? (r.result as unknown as { state: number; joinedCount: number }) : undefined;
-            return {
-              ...a,
-              joinedCount: ar ? Number(ar.joinedCount) : 0,
-              state: ar ? ARENA_STATES[Number(ar.state)] ?? "created" : "created",
+            if (r?.status !== "success") return null;
+            const a = r.result as unknown as {
+              creator: `0x${string}`;
+              token: `0x${string}`;
+              stake: bigint;
+              maxPlayers: number;
+              joinedCount: number;
+              state: number;
             };
-          });
-        } catch {
-          enriched = recent.map((a) => ({ ...a, joinedCount: 0, state: "created" as ArenaState }));
-        }
-        if (signal?.aborted) return;
+            return {
+              id: BigInt(id),
+              creator: a.creator,
+              token: a.token,
+              stake: a.stake,
+              maxPlayers: Number(a.maxPlayers),
+              joinedCount: Number(a.joinedCount),
+              state: ARENA_STATES[Number(a.state)] ?? "created",
+            } as ArenaSummary;
+          })
+          .filter((x): x is ArenaSummary => x !== null);
 
         setArenas(enriched);
         setError(null);
       } catch (e) {
-        // Surface the failure instead of masquerading as "no arenas" — silent
-        // empties hid RPC range failures during scale testing.
         if (!signal?.aborted) setError(e instanceof Error ? e.message : "failed to load arenas");
       } finally {
         if (!signal?.aborted) setLoading(false);
