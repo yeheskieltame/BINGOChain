@@ -41,6 +41,17 @@ CREATE TABLE IF NOT EXISTS player_stats (
   updated_at     timestamptz NOT NULL DEFAULT now()
 );
 
+-- Competition events (Cup): a leaderboard is scoped to [starts_at, ends_at].
+CREATE TABLE IF NOT EXISTS competitions (
+  id               text PRIMARY KEY,
+  title            text NOT NULL,
+  starts_at        timestamptz NOT NULL,
+  ends_at          timestamptz NOT NULL,
+  prize_per_winner numeric,
+  top_n            integer,
+  token            text
+);
+
 -- Cursor for the on-chain indexer (last processed block per event scan).
 CREATE TABLE IF NOT EXISTS indexer_state (
   id              text PRIMARY KEY,
