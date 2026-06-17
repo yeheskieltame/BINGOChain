@@ -12,6 +12,7 @@ export function ProfileEditor() {
   const { address } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const [name, setName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [bio, setBio] = useState("");
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -25,6 +26,7 @@ export function ProfileEditor() {
       .then((d) => {
         if (!on) return;
         setName(d.profile?.name ?? "");
+        setAvatarUrl(d.profile?.avatar_url ?? "");
         setBio(d.profile?.bio ?? "");
       })
       .catch(() => {})
