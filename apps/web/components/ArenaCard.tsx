@@ -29,12 +29,22 @@ export function ArenaCard({ arena }: { arena: ArenaSummary }) {
   return (
     <Link
       href={`/arena/${arena.id}`}
-      className="group glass relative block overflow-hidden rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:border-neon/30 hover:shadow-glow"
+      className="group glass animate-fade-rise relative block overflow-hidden rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:border-neon/40 hover:shadow-glow"
     >
+      {/* Hairline top-edge highlight for a premium, lit rim. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-neon/50 to-transparent opacity-60"
+      />
       {/* Orb glow, top-right — echoes the ruby planet and brightens on hover. */}
       <div
         aria-hidden
         className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-neon/10 opacity-60 blur-2xl transition-opacity duration-300 group-hover:opacity-100"
+      />
+      {/* Soft cool glow, bottom-left, for depth. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-12 -left-12 h-28 w-28 rounded-full bg-state-playing/10 opacity-50 blur-2xl"
       />
 
       <div className="relative flex items-start justify-between gap-3">
