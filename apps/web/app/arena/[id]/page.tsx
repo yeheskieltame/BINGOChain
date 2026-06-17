@@ -19,6 +19,7 @@ import { Button } from "../../../components/ui/button";
 import { Badge, type BadgeProps } from "../../../components/ui/badge";
 import { BackButton } from "../../../components/BackButton";
 import { ArenaResult } from "../../../components/ArenaResult";
+import { ShareButton } from "../../../components/ShareButton";
 
 type Saved = { board: number[]; salt: `0x${string}` };
 
@@ -108,9 +109,12 @@ export default function ArenaPage() {
         <h1 className="font-display text-2xl font-black text-foreground md:text-3xl">
           Arena <span className="font-mono text-gold-300">#{id.toString()}</span>
         </h1>
-        {/* Connect lives in the TopNav on desktop */}
-        <div className="md:hidden">
-          <ConnectButton />
+        <div className="flex items-center gap-2">
+          <ShareButton title={`BINGOChain · Arena #${id.toString()}`} />
+          {/* Connect lives in the TopNav on desktop */}
+          <div className="md:hidden">
+            <ConnectButton />
+          </div>
         </div>
       </div>
 
