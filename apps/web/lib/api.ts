@@ -120,7 +120,7 @@ export const getNonce = (address: string) =>
 
 export async function putProfile(
   address: string,
-  body: { name?: string; avatarSeed?: string; bio?: string; signature: string },
+  body: { name?: string; avatarSeed?: string; avatarUrl?: string; bio?: string; signature: string },
 ): Promise<Profile> {
   const res = await fetch(`${API_URL}/api/profile/${address}`, {
     method: "PUT",
