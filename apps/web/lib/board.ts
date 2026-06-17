@@ -65,3 +65,10 @@ export function completedLines(board: number[], called: Set<number>): number {
   const marked = board.map((n) => called.has(n));
   return LINES.filter((line) => line.every((cell) => marked[cell])).length;
 }
+
+/// Indices into LINES of the lines that are fully marked — used to draw a strike
+/// over each completed row/column/diagonal on the board.
+export function completedLineIndices(board: number[], called: Set<number>): number[] {
+  const marked = board.map((n) => called.has(n));
+  return LINES.map((line, i) => (line.every((cell) => marked[cell]) ? i : -1)).filter((i) => i >= 0);
+}
