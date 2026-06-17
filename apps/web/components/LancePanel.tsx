@@ -122,7 +122,7 @@ export function LancePanel() {
             key={m}
             type="button"
             onClick={() => { setMode(m); setAmount(""); setErr(null); }}
-            className={`rounded-xl border px-3 py-2.5 text-sm font-semibold capitalize ${mode === m ? "border-gold-400 bg-gold-400/10 text-gold-400" : "border-neutral-700 text-neutral-300"}`}
+            className={`rounded-xl border px-3 py-2.5 text-sm font-semibold capitalize transition-colors ${mode === m ? "border-neon/40 bg-neon/15 text-neon" : "border-white/10 text-muted-foreground hover:bg-white/5 hover:text-cream"}`}
           >
             {m}
           </button>
