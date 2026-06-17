@@ -102,17 +102,17 @@ export function LancePanel() {
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-center text-[0.7rem]">
-        <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-2 py-1.5">
-          <div className="text-neutral-500">Supply</div>
-          <div className="mt-0.5 font-mono font-semibold">{fmt(supply, 18, 0)}</div>
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-2 py-1.5">
+          <div className="text-muted-foreground">Supply</div>
+          <div className="mt-0.5 font-mono font-semibold text-cream">{fmt(supply, 18, 0)}</div>
         </div>
-        <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-2 py-1.5">
-          <div className="text-neutral-500">Pool</div>
-          <div className="mt-0.5 font-mono font-semibold">{fmt(pool, 18, 2)} CELO</div>
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-2 py-1.5">
+          <div className="text-muted-foreground">Pool</div>
+          <div className="mt-0.5 font-mono font-semibold text-cream">{fmt(pool, 18, 2)} CELO</div>
         </div>
-        <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-2 py-1.5">
-          <div className="text-neutral-500">Backed</div>
-          <div className="mt-0.5 font-mono font-semibold text-emerald-400">100%</div>
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-2 py-1.5">
+          <div className="text-muted-foreground">Backed</div>
+          <div className="mt-0.5 font-mono font-semibold text-neon">100%</div>
         </div>
       </div>
 
