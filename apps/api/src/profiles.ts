@@ -45,7 +45,7 @@ export function registerProfileRoutes(app: FastifyInstance, pool: Pool) {
 
   app.put<{
     Params: { address: string };
-    Body: { name?: string; avatarSeed?: string; bio?: string; signature?: string };
+    Body: { name?: string; avatarSeed?: string; avatarUrl?: string; bio?: string; signature?: string };
   }>("/api/profile/:address", async (req, reply) => {
     const address = req.params.address.toLowerCase();
     if (!isAddress(address)) return reply.code(400).send({ error: "bad_address" });
