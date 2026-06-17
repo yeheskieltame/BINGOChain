@@ -9,40 +9,42 @@ const TABS = [
   { href: "/", label: "Home" },
   { href: "/arenas", label: "Arenas" },
   { href: "/competition", label: "Cup" },
+  { href: "/how-to-play", label: "How to play" },
   { href: "/profile", label: "Profile" },
 ];
 
-/// Desktop-only sticky header. On mobile the BottomNav takes over (this is
-/// hidden below md), so wide screens get a conventional top bar instead of a
-/// floating tab bar marooned at the bottom of a tall viewport.
+/// Desktop-only sticky header in the cinematic style: a floating liquid-glass
+/// pill nav (mirrors the landing) between the neon wordmark and Connect. Hidden
+/// below md (BottomNav takes over) and on the landing route (it has its own nav).
 export function TopNav() {
   const path = usePathname() ?? "/";
-  if (path === "/") return null; // the cinematic landing has its own nav
+  if (path === "/") return null;
   return (
-    <header className="sticky top-0 z-40 hidden border-b border-white/[0.06] bg-background/70 backdrop-blur-xl md:block">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <Link href="/" className="font-display text-xl font-extrabold tracking-tight">
+    <header className="sticky top-0 z-40 hidden md:block">
+      <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6">
+        <Link href="/" className="font-anton text-xl uppercase tracking-tight">
           <span className="text-gradient-gold">BINGO</span>
           <span className="text-foreground">Chain</span>
         </Link>
-        <nav className="flex items-center gap-1">
-          {TABS.map(({ href, label }) => {
-            const active = href === "/" ? path === "/" : path.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-gold-400/10 text-gold-300"
-                    : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground",
-                )}
-              >
-                {label}
-              </Link>
-            );
-          })}
+        <nav className="liquid-glass rounded-full px-8 py-3">
+          <ul className="flex items-center gap-7">
+            {TABS.map(({ href, label }) => {
+              const active = href === "/" ? path === "/" : path.startsWith(href);
+              return (
+                <li key={href}>
+                  <Link
+                    href={href}
+                    className={cn(
+                      "font-anton text-[13px] uppercase tracking-wide transition-colors",
+                      active ? "text-neon" : "text-cream/80 hover:text-neon",
+                    )}
+                  >
+                    {label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </nav>
         <ConnectButton />
       </div>
