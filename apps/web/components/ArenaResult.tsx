@@ -43,15 +43,17 @@ export function ArenaResult({ arenaId, called }: { arenaId: string; called: Set<
       {d.boards.length > 0 && (
         <div className="space-y-3">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Revealed boards · verifiable</p>
-          {d.boards.map((b) => (
-            <div key={b.player} className="glass space-y-2 rounded-xl p-3">
-              <div className="flex items-center justify-between">
-                <Player address={b.player} name={nameOf(b.player)} size="sm" />
-                {winners.has(b.player.toLowerCase()) && <Badge variant="gold">WON</Badge>}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {d.boards.map((b) => (
+              <div key={b.player} className="glass space-y-2 rounded-xl p-3">
+                <div className="flex items-center justify-between">
+                  <Player address={b.player} name={nameOf(b.player)} size="sm" />
+                  {winners.has(b.player.toLowerCase()) && <Badge variant="gold">WON</Badge>}
+                </div>
+                <BoardGrid board={b.board} called={called} />
               </div>
-              <BoardGrid board={b.board} called={called} />
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
