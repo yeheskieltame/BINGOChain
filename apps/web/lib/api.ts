@@ -34,15 +34,37 @@ export const getPlayer = (address: string) =>
 export const getLeaderboard = (limit = 50) =>
   fetch(`${API_URL}/api/leaderboard?limit=${limit}`, { cache: "no-store" }).then(asJson<LeaderboardRow[]>);
 
-export type ReferralInfo = { address: string; invitedCount: number; invitedBy: string | null };
+export type ReferralInfo = {
+  address: string;
+  invitedCount: number;
+  qualifiedInvites: number;
+  earnedLance: string;
+  pendingLance: string;
+  invitedBy: string | null;
+};
 export type ReferralRow = { rank: number; address: string; name: string | null; invites: number };
 
-export const recordReferral = (referrer: string, referree: string) =>
-  fetch(`${API_URL}/api/referral`, {
+// Dedicated nonce for confirming an inviter — the referree calls this, signs the
+// returned message, then posts the signature to recordReferral.
+export const getReferralNonce = (address: string) =>
+  fetch(`${API_URL}/api/auth/referral-nonce/${address}`, { cache: "no-store" }).then(
+    asJson<{ address: string; nonce: string }>,
+  );
+
+// SIWE-gated: the referree signs the nonce message proving wallet ownership, then
+// posts the signature here to credit their inviter.
+export async function recordReferral(referrer: string, referree: string, signature: string) {
+  const res = await fetch(`${API_URL}/api/referral`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ referrer, referree }),
-  }).then(asJson<{ ok: boolean; status: string }>);
+    body: JSON.stringify({ referrer, referree, signature }),
+  });
+  if (!res.ok) {
+    const e = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(e.error || `api ${res.status}`);
+  }
+  return res.json() as Promise<{ ok: boolean; status: string }>;
+}
 
 export const getReferral = (address: string) =>
   fetch(`${API_URL}/api/referral/${address}`, { cache: "no-store" }).then(asJson<ReferralInfo>);
