@@ -120,7 +120,9 @@ BINGOChain/
 │   ├── test/         # unit / fuzz / invariant suites
 │   └── lib/          # vendored deps (OpenZeppelin, forge-std)
 ├── apps/
-│   └── web/          # MiniPay mini app (frontend) — planned
+│   ├── web/          # Next.js app — lobby, live play, Cup, profiles (bingochain.vercel.app)
+│   └── api/          # Fastify + Postgres backend + viem indexer (Railway)
+├── docs/             # security review, upgrade runbook
 ├── README.md · LICENSE · SECURITY.md · CONTRIBUTING.md
 └── .github/          # CI (build · fmt · test · Slither)
 ```
