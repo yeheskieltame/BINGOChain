@@ -156,7 +156,7 @@ export function LancePanel() {
         type="button"
         onClick={submit}
         disabled={!canSubmit}
-        className="w-full rounded-xl bg-gold-400 px-4 py-3 font-semibold text-neutral-950 disabled:opacity-50"
+        className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-primary-foreground shadow-glow transition-colors hover:bg-gold-500 disabled:opacity-50 disabled:shadow-none"
       >
         {busy ? "Working…" : isConnected ? (mode === "buy" ? "Buy $LANCE" : "Redeem to CELO") : "Connect a wallet"}
       </button>
