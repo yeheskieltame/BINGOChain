@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { bingoAbi, BINGO_ADDRESS, CHAIN_ID } from "../../../lib/bingo";
@@ -40,11 +40,10 @@ export default function ArenaPage() {
   const { arena, players, calls, refetch } = useArena(id);
   const profiles = useProfiles(players);
   const [busy, setBusy] = useState(false);
-  // The board the player arranges before joining. Seeded with a random layout on
-  // the client (not during SSR) so there's no hydration mismatch; the player then
-  // swaps cells to design it. Always a valid permutation of 1..25.
-  const [draftBoard, setDraftBoard] = useState<number[] | null>(null);
-  useEffect(() => setDraftBoard(randomBoard()), []);
+  // The board the player builds before joining: 25 cells, null = empty. Numbers
+  // are dragged/tapped in from the tray; complete once every cell is filled.
+  const [draft, setDraft] = useState<(number | null)[]>(() => Array(25).fill(null));
+  const boardComplete = draft.every((n) => n !== null);
   const { writeContractAsync } = useWriteContract();
 
   const token = (arena?.token ?? "0x0000000000000000000000000000000000000000") as `0x${string}`;
