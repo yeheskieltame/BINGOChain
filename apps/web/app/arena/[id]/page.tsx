@@ -37,7 +37,7 @@ export default function ArenaPage() {
   const id = BigInt(useParams<{ id: string }>().id);
   const { address } = useAccount();
   const { arena, players, calls, refetch } = useArena(id);
-  const names = useProfiles(players);
+  const profiles = useProfiles(players);
   const [busy, setBusy] = useState(false);
   const { writeContractAsync } = useWriteContract();
 
@@ -142,6 +142,7 @@ export default function ArenaPage() {
             {players.map((p, i) => {
               const isTurn = (state === 1 || state === 2) && Number(arena.turnIndex) === i;
               const isMe = p.toLowerCase() === address?.toLowerCase();
+              const prof = profiles[p.toLowerCase()];
               return (
                 <div
                   key={p}
@@ -150,9 +151,9 @@ export default function ArenaPage() {
                     isTurn && "ring-1 ring-gold-400/60",
                   )}
                 >
-                  <PlayerAvatar address={p} size={22} />
-                  <span className={names[p.toLowerCase()] ? "text-xs font-medium text-foreground" : "font-mono text-xs text-foreground"}>
-                    {names[p.toLowerCase()] ?? shortAddress(p)}
+                  <PlayerAvatar address={p} imageUrl={prof?.avatarUrl} size={22} />
+                  <span className={prof?.name ? "text-xs font-medium text-foreground" : "font-mono text-xs text-foreground"}>
+                    {prof?.name ?? shortAddress(p)}
                     {isMe && <span className="text-gold-300"> · you</span>}
                   </span>
                   {isTurn && <span className="size-1.5 animate-pulse rounded-full bg-gold-400" />}
