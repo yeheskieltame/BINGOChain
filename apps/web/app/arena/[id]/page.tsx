@@ -64,6 +64,31 @@ export default function ArenaPage() {
     query: { enabled: !!address && !!arena },
   });
 
+  // The board commitment stored on-chain for this player — used to detect a
+  // saved board that no longer matches it (overwritten), which can never reveal.
+  const myCommit = useReadContract({
+    abi: bingoAbi,
+    address: BINGO_ADDRESS,
+    functionName: "boardCommitOf",
+    args: address ? [id, address] : undefined,
+    chainId: CHAIN_ID,
+    query: { enabled: !!address && !!arena },
+  });
+  const onchainCommit = typeof myCommit.data === "string" ? myCommit.data : undefined;
+  const hasCommit = !!onchainCommit && !/^0x0+$/.test(onchainCommit);
+  const savedMismatch =
+    !!mine && hasCommit && commitment(mine.board, mine.salt).toLowerCase() !== onchainCommit!.toLowerCase();
+
+  const revealedMe = useReadContract({
+    abi: bingoAbi,
+    address: BINGO_ADDRESS,
+    functionName: "hasRevealed",
+    args: address ? [id, address] : undefined,
+    chainId: CHAIN_ID,
+    query: { enabled: !!address && !!arena, refetchInterval: 3000 },
+  });
+  const iRevealed = revealedMe.data === true;
+
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
     try {
@@ -78,14 +103,19 @@ export default function ArenaPage() {
 
   async function join(board: number[]) {
     if (!address || !arena) return;
-    const salt = randomSalt();
-    saveBoard(id.toString(), address, { board, salt });
+    // Reuse the board + salt already sealed for this arena if one exists, so a
+    // re-submit (double click, retry, or rejoining a stale view) can NEVER
+    // replace the salt that was committed on-chain. Overwriting it was the bug
+    // that made reveal fail later with CommitMismatch. Otherwise seal this board
+    // with a fresh salt and persist it before committing so it is never lost.
+    const sealed = loadBoard(id.toString(), address) ?? { board, salt: randomSalt() };
+    saveBoard(id.toString(), address, sealed);
     if (allowance < arena.stake) await approve();
     await writeContractAsync({
       abi: bingoAbi,
       address: BINGO_ADDRESS,
       functionName: "commitBoard",
-      args: [id, commitment(board, salt)],
+      args: [id, commitment(sealed.board, sealed.salt)],
       chainId: CHAIN_ID,
     });
   }
@@ -242,7 +272,17 @@ export default function ArenaPage() {
       {/* Revealing: reveal + settle */}
       {state === 3 && (
         <>
-          {mine ? (
+          {iRevealed ? (
+            <p className="rounded-xl border border-state-open/30 bg-state-open/10 p-3 text-sm text-state-open">
+              Board revealed. Waiting for all players to reveal or the window to close, then anyone can settle.
+            </p>
+          ) : savedMismatch ? (
+            <p className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              Your saved board for this arena doesn&apos;t match what you committed on-chain, so it can&apos;t be
+              revealed (the saved copy was overwritten on this device). Nothing to do here; the arena settles
+              automatically once the reveal window ends.
+            </p>
+          ) : mine ? (
             <Button onClick={() => run(() => write("revealBoard", [id, mine.board, mine.salt]))} disabled={busy} size="lg">
               Reveal my board
             </Button>
