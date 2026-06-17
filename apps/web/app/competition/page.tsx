@@ -52,9 +52,9 @@ export default function CupPage() {
   const sel = (comps ?? []).find((c) => c.id === selected) ?? null;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-5 px-5 py-10">
+    <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-5 px-5 py-10 md:px-6">
       <BackButton />
-      <h1 className="font-display text-2xl font-black text-foreground">🏆 Cup</h1>
+      <h1 className="font-display text-2xl font-black text-foreground md:text-3xl">🏆 Cup</h1>
       <p className="text-sm text-muted-foreground">
         Compete for <span className="text-gold-300">$LANCE</span> by total volume staked. Live events run a countdown;
         past events keep their final standings.
@@ -99,8 +99,8 @@ export default function CupPage() {
       ) : !sel ? (
         <p className="text-sm text-muted-foreground">No {tab} events right now.</p>
       ) : (
-        <>
-          <div className="glass space-y-2 rounded-xl p-5">
+        <div className="grid gap-5 lg:grid-cols-3 lg:items-start">
+          <div className="glass space-y-2 rounded-xl p-5 lg:sticky lg:top-20 lg:col-span-1">
             <div className="flex items-center justify-between">
               <p className="font-display text-lg font-bold text-foreground">{sel.title}</p>
               <Badge variant={sel.status === "live" ? "open" : "settled"} dot={sel.status === "live"}>
@@ -124,13 +124,14 @@ export default function CupPage() {
             )}
           </div>
 
-          {!board ? (
-            <p className="text-sm text-muted-foreground">Loading leaderboard…</p>
-          ) : board.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No entries in this window yet.</p>
-          ) : (
-            <div className="glass overflow-hidden rounded-2xl">
-              <table className="w-full text-sm">
+          <div className="lg:col-span-2">
+            {!board ? (
+              <p className="text-sm text-muted-foreground">Loading leaderboard…</p>
+            ) : board.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No entries in this window yet.</p>
+            ) : (
+              <div className="glass overflow-hidden rounded-2xl">
+                <table className="w-full text-sm">
                 <thead className="text-left text-xs text-muted-foreground">
                   <tr className="border-b border-border">
                     <th className="px-4 py-3">#</th>
@@ -158,8 +159,9 @@ export default function CupPage() {
                 </tbody>
               </table>
             </div>
-          )}
-        </>
+            )}
+          </div>
+        </div>
       )}
 
       <p className="text-xs text-muted-foreground/70">
