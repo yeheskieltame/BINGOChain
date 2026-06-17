@@ -7,6 +7,7 @@ import { ConnectButton } from "../../components/ConnectButton";
 import { ProfileEditor } from "../../components/ProfileEditor";
 import { PlayerStatsCard } from "../../components/PlayerStatsCard";
 import { ReferralCard } from "../../components/ReferralCard";
+import { ReferralLeaderboard } from "../../components/ReferralLeaderboard";
 
 export default function ProfilePage() {
   const { address, isConnected } = useAccount();
@@ -37,6 +38,7 @@ export default function ProfilePage() {
               <LancePanel />
             </div>
             <ReferralCard />
+            <ReferralLeaderboard />
           </div>
         </div>
       ) : (
