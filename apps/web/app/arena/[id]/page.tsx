@@ -64,6 +64,21 @@ export default function ArenaPage() {
     query: { enabled: !!address && !!arena },
   });
 
+  // The board commitment stored on-chain for this player — used to detect a
+  // saved board that no longer matches it (overwritten), which can never reveal.
+  const myCommit = useReadContract({
+    abi: bingoAbi,
+    address: BINGO_ADDRESS,
+    functionName: "boardCommitOf",
+    args: address ? [id, address] : undefined,
+    chainId: CHAIN_ID,
+    query: { enabled: !!address && !!arena },
+  });
+  const onchainCommit = typeof myCommit.data === "string" ? myCommit.data : undefined;
+  const hasCommit = !!onchainCommit && !/^0x0+$/.test(onchainCommit);
+  const savedMismatch =
+    !!mine && hasCommit && commitment(mine.board, mine.salt).toLowerCase() !== onchainCommit!.toLowerCase();
+
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
     try {
