@@ -53,6 +53,10 @@ export default {
           600: "hsl(var(--gold-600) / <alpha-value>)",
           DEFAULT: "hsl(var(--gold-400) / <alpha-value>)",
         },
+        // Cinematic landing palette (Orbis-style): deep navy, off-white, neon green.
+        navy: "#010828",
+        cream: "#EFF4FF",
+        neon: "#6FFF00",
         state: {
           open: "hsl(var(--state-open) / <alpha-value>)",
           full: "hsl(var(--state-full) / <alpha-value>)",
@@ -73,6 +77,8 @@ export default {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
         display: ["var(--font-display)", "var(--font-sans)", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
+        anton: ["var(--font-anton)", "var(--font-display)", "system-ui", "sans-serif"],
+        condiment: ["var(--font-condiment)", "cursive"],
       },
       boxShadow: {
         sm: "0 1px 2px 0 rgb(0 0 0 / 0.4)",
