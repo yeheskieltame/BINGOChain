@@ -148,6 +148,17 @@ app.get<{ Params: { address: string } }>("/api/profile/:address", async (req, re
 
 registerProfileRoutes(app, pool);
 
+// Seed the Cup events: one ongoing (live) + one ended (past). Idempotent.
+async function seedCompetitions() {
+  if (!connectionString) return;
+  await pool.query(`
+    insert into competitions(id, title, starts_at, ends_at, prize_per_winner, top_n, token) values
+      ('weekly-1', 'Weekly Volume Cup', now() - interval '2 days', now() + interval '5 days', 20, 10, '$LANCE'),
+      ('cup-1', 'Volume Cup #1', timestamptz '2026-06-16 00:00:00+00', timestamptz '2026-06-16 12:00:00+00', 20, 10, '$LANCE')
+    on conflict (id) do nothing
+  `);
+}
+
 async function migrate() {
   if (!connectionString) {
     app.log.warn("DATABASE_URL not set — skipping migration");
@@ -161,6 +172,7 @@ async function migrate() {
 const port = Number(process.env.PORT || 8080);
 try {
   await migrate();
+  await seedCompetitions().catch((e) => app.log.error(e, "seed competitions failed"));
   await app.listen({ port, host: "0.0.0.0" });
   app.log.info(`bingochain-api listening on :${port}`);
   // Fire-and-forget: backfill + poll the chain in the background.
