@@ -17,6 +17,7 @@ import { PlayerAvatar } from "../../../components/PlayerAvatar";
 import { useProfiles } from "../../../hooks/useProfiles";
 import { Button } from "../../../components/ui/button";
 import { Badge, type BadgeProps } from "../../../components/ui/badge";
+import { BackButton } from "../../../components/BackButton";
 
 type Saved = { board: number[]; salt: `0x${string}` };
 
@@ -101,6 +102,7 @@ export default function ArenaPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-5 py-10">
+      <BackButton />
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl font-black text-foreground">
           Arena <span className="font-mono text-gold-300">#{id.toString()}</span>
