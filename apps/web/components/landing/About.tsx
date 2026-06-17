@@ -7,7 +7,7 @@ const BLURB =
   "A 5×5 board you seal before the game. Numbers are called in turn, onchain — and the winner is proven by replaying every move. Strategy over luck.";
 
 /// Section 2 — full-bleed video intro: oversized Anton greeting with a cursive
-/// Condiment accent, a mono blurb, and a row of nearly-invisible decorative copies.
+/// Condiment accent, a mono blurb, and a row of faded decorative echoes.
 export function About() {
   return (
     <section className="relative min-h-screen overflow-hidden">
@@ -34,19 +34,19 @@ export function About() {
 
         <div className="mt-auto flex justify-between gap-8 pt-16">
           <div className="flex flex-col gap-3">
-            <p className="max-w-[266px] font-mono text-[14px] uppercase leading-relaxed text-cream opacity-10 sm:text-[16px]">
+            <p className="max-w-[266px] font-mono text-[14px] uppercase leading-relaxed text-cream opacity-40 sm:text-[16px]">
               {BLURB}
             </p>
-            <p className="max-w-[266px] font-mono text-[14px] uppercase leading-relaxed text-cream opacity-10 sm:text-[16px]">
+            <p className="max-w-[266px] font-mono text-[14px] uppercase leading-relaxed text-cream opacity-40 sm:text-[16px]">
               {BLURB}
             </p>
           </div>
 
           <div className="hidden flex-col gap-3 lg:flex">
-            <p className="max-w-[266px] font-mono text-[14px] uppercase leading-relaxed text-cream opacity-10 sm:text-[16px]">
+            <p className="max-w-[266px] font-mono text-[14px] uppercase leading-relaxed text-cream opacity-40 sm:text-[16px]">
               {BLURB}
             </p>
-            <p className="max-w-[266px] font-mono text-[14px] uppercase leading-relaxed text-cream opacity-10 sm:text-[16px]">
+            <p className="max-w-[266px] font-mono text-[14px] uppercase leading-relaxed text-cream opacity-40 sm:text-[16px]">
               {BLURB}
             </p>
           </div>
