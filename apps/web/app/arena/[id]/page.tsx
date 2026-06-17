@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { bingoAbi, BINGO_ADDRESS, CHAIN_ID } from "../../../lib/bingo";
@@ -11,6 +11,7 @@ import { useArena } from "../../../hooks/useArena";
 import { useToken } from "../../../hooks/useToken";
 import { tokenInfo } from "../../../components/ArenaCard";
 import { BoardGrid } from "../../../components/BoardGrid";
+import { BoardBuilder } from "../../../components/BoardBuilder";
 import { NumberPad } from "../../../components/NumberPad";
 import { ConnectButton } from "../../../components/ConnectButton";
 import { PlayerAvatar } from "../../../components/PlayerAvatar";
