@@ -91,7 +91,7 @@ export default function ArenaPage() {
     );
 
   if (!arena) {
-    return <main className="mx-auto max-w-md px-5 py-10 text-muted-foreground">Loading arena #{id.toString()}…</main>;
+    return <main className="mx-auto max-w-2xl px-5 py-10 text-muted-foreground">Loading arena #{id.toString()}…</main>;
   }
 
   const state = Number(arena.state);
@@ -102,13 +102,16 @@ export default function ArenaPage() {
   const STATE_BADGE: BadgeProps["variant"][] = ["open", "full", "playing", "revealing", "settled", "cancelled"];
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-5 py-10">
+    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-5 px-5 py-10 md:px-6">
       <BackButton />
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-black text-foreground">
+        <h1 className="font-display text-2xl font-black text-foreground md:text-3xl">
           Arena <span className="font-mono text-gold-300">#{id.toString()}</span>
         </h1>
-        <ConnectButton />
+        {/* Connect lives in the TopNav on desktop */}
+        <div className="md:hidden">
+          <ConnectButton />
+        </div>
       </div>
 
       <div className="glass flex items-center justify-between rounded-xl p-3.5 text-sm">
@@ -161,17 +164,19 @@ export default function ArenaPage() {
       {/* Playing: board progress + call + claim */}
       {(state === 1 || state === 2) && (
         <>
-          {mine && (
+          <div className="grid gap-5 sm:grid-cols-2">
+            {mine && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Your board · <span className="text-gold-300">{lines}/5</span> lines
+                </p>
+                <BoardGrid board={mine.board} called={calledSet} lastCalled={lastCalled} />
+              </div>
+            )}
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Your board · <span className="text-gold-300">{lines}/5</span> lines
-              </p>
-              <BoardGrid board={mine.board} called={calledSet} lastCalled={lastCalled} />
+              <p className="text-sm text-muted-foreground">{myTurn ? "Your turn — call a number" : "Called numbers"}</p>
+              <NumberPad called={calledSet} disabled={busy || !myTurn} onCall={(n) => run(() => write("callNumber", [id, n]))} lastCalled={lastCalled} />
             </div>
-          )}
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">{myTurn ? "Your turn — call a number" : "Called numbers"}</p>
-            <NumberPad called={calledSet} disabled={busy || !myTurn} onCall={(n) => run(() => write("callNumber", [id, n]))} lastCalled={lastCalled} />
           </div>
           {joined && (
             <Button variant="outline" onClick={() => run(() => write("claimBingo", [id]))} disabled={busy} size="lg" className="border-gold-400/50 text-gold-300 hover:bg-gold-400/10">
