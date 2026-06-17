@@ -72,7 +72,7 @@ app.get("/api/stats", async () => {
 
 app.get<{ Params: { address: string } }>("/api/player/:address", async (req) => {
   const address = req.params.address.toLowerCase();
-  const profile = await pool.query("select address, name, avatar_seed, bio from players where address=$1", [address]);
+  const profile = await pool.query("select address, name, avatar_seed, avatar_url, bio from players where address=$1", [address]);
   const stats = await pool.query("select * from player_stats where address=$1", [address]);
   const recent = await pool.query(
     `select pm.arena_id, pm.outcome, pm.prize_won, m.stake, m.token, m.created_at
@@ -189,7 +189,7 @@ app.get<{ Params: { id: string } }>("/api/arena/:id", async (req, reply) => {
 // Profile read stub (write/SIWE lands in Slice 5).
 app.get<{ Params: { address: string } }>("/api/profile/:address", async (req, reply) => {
   const address = req.params.address.toLowerCase();
-  const { rows } = await pool.query("select address, name, avatar_seed, bio from players where address = $1", [address]);
+  const { rows } = await pool.query("select address, name, avatar_seed, avatar_url, bio from players where address = $1", [address]);
   if (!rows[0]) return reply.code(404).send({ error: "not_found", address });
   return rows[0];
 });
