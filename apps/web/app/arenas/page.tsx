@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useArenas } from "../../hooks/useArenas";
-import { ArenaCard } from "../../components/ArenaCard";
+import { ArenaCard, tokenInfo } from "../../components/ArenaCard";
 import { ConnectButton } from "../../components/ConnectButton";
 import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
 import { Skeleton } from "../../components/ui/skeleton";
 import { cn } from "../../lib/utils";
 
@@ -21,11 +22,16 @@ const FILTERS = [
 export default function ArenasPage() {
   const { arenas, loading, error } = useArenas();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("open");
+  const [q, setQ] = useState("");
   const active = FILTERS.find((f) => f.key === filter)!;
 
+  const term = q.trim().toLowerCase();
   const sorted = [...arenas]
     .sort((a, b) => (STATE_ORDER[a.state] ?? 9) - (STATE_ORDER[b.state] ?? 9) || (a.id > b.id ? -1 : 1))
-    .filter((a) => active.match(a.state));
+    .filter((a) => active.match(a.state))
+    .filter(
+      (a) => !term || a.id.toString().includes(term) || (tokenInfo(a.token)?.symbol ?? "").toLowerCase().includes(term),
+    );
   const openCount = arenas.filter((a) => a.state === "created").length;
 
   return (
@@ -43,6 +49,8 @@ export default function ArenasPage() {
           <Link href="/profile">Profile</Link>
         </Button>
       </div>
+
+      <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by arena # or token…" inputMode="search" />
 
       <div className="flex items-center gap-2">
         {FILTERS.map((f) => (
