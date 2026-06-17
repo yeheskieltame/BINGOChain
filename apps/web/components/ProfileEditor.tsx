@@ -104,11 +104,26 @@ export function ProfileEditor() {
 
   return (
     <section className="glass space-y-4 rounded-xl p-5">
-      <div className="flex items-center gap-3">
-        <PlayerAvatar address={address} size={44} />
-        <div className="min-w-0">
-          <p className="truncate font-display text-lg font-bold text-foreground">{name || "Your profile"}</p>
+      <div className="flex items-center gap-4">
+        <PlayerAvatar address={address} imageUrl={avatarUrl || undefined} size={56} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-anton text-lg uppercase text-cream">{name || "Your profile"}</p>
           <p className="font-mono text-xs text-muted-foreground">{shortAddress(address)}</p>
+          <div className="mt-2 flex items-center gap-3">
+            <label className="cursor-pointer rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs font-semibold text-cream transition-colors hover:border-neon/40">
+              {avatarUrl ? "Change photo" : "Upload photo"}
+              <input type="file" accept="image/*" onChange={onPickFile} className="hidden" />
+            </label>
+            {avatarUrl && (
+              <button
+                type="button"
+                onClick={() => setAvatarUrl("")}
+                className="text-xs text-muted-foreground transition-colors hover:text-destructive"
+              >
+                Remove
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
