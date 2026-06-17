@@ -16,6 +16,11 @@ const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono", display: 
 export const metadata: Metadata = {
   title: "BINGOChain — onchain bingo on Celo",
   description: "Strategic onchain bingo on Celo — sealed boards, verifiable winners, staked in $LANCE.",
+  // Talent Protocol (Proof of Ship) domain-ownership verification.
+  other: {
+    "talentapp:project_verification":
+      "f5e12935118f8d7a84950cee739d4a9354c59ca2e6a89b249dc46b28e385f612306febe9a19b2c51c15a2d76a2d12536f5b1bc453bc20af745d400933e33f563",
+  },
 };
 
 export const viewport: Viewport = {
