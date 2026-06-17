@@ -321,6 +321,72 @@ async function resume(tag) {
   log(`resume done: ${recovered} arenas recovered`);
 }
 
+// ── play-open: fill the seeded Open arenas with players and play to settle ────
+// Reads seed-open state files, joins fresh pool wallets to fill each arena's
+// remaining seats (commit order continues after the seed player → seats stay in
+// turn order), then plays it out turn-by-turn → claimBingo → reveal all → settle
+// → withdraw. Turns a seeded lobby into completed games with real winners.
+async function playOpen(tag) {
+  const dir = join(__dir, "out");
+  const files = readdirSync(dir).filter((f) => f.startsWith(`state-${tag}-arena`) && f.endsWith(".json")).sort();
+  if (!files.length) { log(`play-open: no state files for tag ${tag}`); return; }
+  const pool = shuffle(loadPool());
+  const used = new Set();
+  files.forEach((f) => JSON.parse(readFileSync(join(dir, f), "utf8")).players?.forEach((p) => used.add(p.address.toLowerCase())));
+  const fillers = pool.filter((p) => !used.has(p.account.address.toLowerCase()));
+  let fi = 0, done = 0;
+
+  for (const f of files) {
+    const st = JSON.parse(readFileSync(join(dir, f), "utf8"));
+    if (st.settled || !st.arenaId) continue;
+    const arenaId = BigInt(st.arenaId);
+    try {
+      const a = await pub.readContract({ address: PROXY, abi: ABI, functionName: "getArena", args: [arenaId] });
+      if (Number(a.state) >= 4) { st.settled = true; writeFileSync(join(dir, f), JSON.stringify(st, null, 2)); log(`#${arenaId} already ${Number(a.state) === 4 ? "settled" : "cancelled"}`); continue; }
+
+      const existing = st.players.map((p) => ({ pk: p.pk, account: privateKeyToAccount(p.pk), board: p.board, salt: p.salt }));
+      const toAdd = Number(a.maxPlayers) - Number(a.joinedCount);
+      const newPlayers = [];
+      for (let k = 0; k < toAdd; k++) { const p = fillers[fi++]; newPlayers.push({ pk: p.pk, account: p.account, board: shuffledBoard(), salt: `0x${randomBytes(32).toString("hex")}` }); }
+      const seats = [...existing, ...newPlayers]; // matches on-chain commit/turn order
+
+      // fund gas for everyone (play + settle headroom)
+      let nonce = await pub.getTransactionCount({ address: deployer.address });
+      const fh = [];
+      for (const p of seats) { const b = await pub.getBalance({ address: p.account.address }); if (b < parseEther("0.8")) fh.push(await wallet(deployer).sendTransaction({ to: p.account.address, value: parseEther("0.8") - b, gas: GAS.fund, nonce: nonce++, ...FEE })); }
+      for (const h of fh) await pub.waitForTransactionReceipt({ hash: h, timeout: 180000 });
+
+      // fillers approve + commit (occupy the remaining seats)
+      for (const p of newPlayers) {
+        await send(p.account, { address: STAKE_TOKEN, abi: ERC20_ABI, functionName: "approve", args: [PROXY, a.stake], gas: GAS.approve }, `#${arenaId} approve`);
+        await send(p.account, { address: PROXY, abi: ABI, functionName: "commitBoard", args: [arenaId, commitmentOf(p.board, p.salt)], gas: GAS.commitBoard }, `#${arenaId} commit`);
+      }
+      log(`#${arenaId} filled ${seats.length}/${Number(a.maxPlayers)} — playing`);
+
+      // play: turn-based greedy until a BINGO line, then claim
+      const called = new Set(); let turn = 0, claimer = null;
+      while (called.size < 25) {
+        const cur = seats[turn % seats.length];
+        const n = pickNumber(cur.board, called);
+        await send(cur.account, { address: PROXY, abi: ABI, functionName: "callNumber", args: [arenaId, n], gas: GAS.callNumber }, `#${arenaId} call`);
+        called.add(n);
+        const w = seats.find((s) => completedLines(markedPositions(s.board, called)) >= WIN_LINES);
+        if (w) { await send(w.account, { address: PROXY, abi: ABI, functionName: "claimBingo", args: [arenaId], gas: GAS.claimBingo }, `#${arenaId} claim`); claimer = w.account.address; break; }
+        turn++;
+      }
+
+      // reveal all, settle, withdraw
+      for (const p of seats) { try { await send(p.account, { address: PROXY, abi: ABI, functionName: "revealBoard", args: [arenaId, p.board, p.salt], gas: GAS.revealBoard }, `#${arenaId} reveal`); } catch (e) { log(`#${arenaId} reveal: ${e.shortMessage || e.message}`); } }
+      const sr = await send(seats[0].account, { address: PROXY, abi: ABI, functionName: "settle", args: [arenaId], gas: GAS.settle }, `#${arenaId} settle`);
+      let wc = "?"; for (const lg of sr.logs) { try { const d = decodeEventLog({ abi: ABI, data: lg.data, topics: lg.topics }); if (d.eventName === "ArenaSettled") wc = Number(d.args.winnerCount); } catch {} }
+      for (const p of seats) { try { const earn = await pub.readContract({ address: PROXY, abi: ABI, functionName: "earningsOf", args: [p.account.address, STAKE_TOKEN] }); if (earn > 0n) await send(p.account, { address: PROXY, abi: ABI, functionName: "withdraw", args: [STAKE_TOKEN], gas: GAS.withdraw }, `#${arenaId} wd`); } catch {} }
+      st.settled = true; writeFileSync(join(dir, f), JSON.stringify(st, null, 2));
+      log(`#${arenaId} SETTLED (${wc} winner)${claimer ? "" : " [25-call fallback]"}`); done++;
+    } catch (e) { log(`#${arenaId} play-open failed: ${e.shortMessage || e.message}`); }
+  }
+  log(`play-open done: ${done} arenas settled`);
+}
+
 // ── modes ────────────────────────────────────────────────────────────────────
 function makePlayers() {
   const arenas = [];
@@ -702,4 +768,5 @@ else if (mode === "resume") resume(arg).then(() => process.exit(0)).catch((e) =>
 else if (mode === "settle-pending") settlePending().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
 else if (mode === "competition") competition().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
 else if (mode === "seed-open") seedOpen(Number(arg || 6)).then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
+else if (mode === "play-open") playOpen(arg || "seed").then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
 else { console.error("usage: play-mainnet.mjs check|run|sweep <file>|pool-init <n>|pool-fund <floor> [count]|pool-status|pool-skim <keep>|wave <numArenas>|resume <tag>|settle-pending"); process.exit(1); }
