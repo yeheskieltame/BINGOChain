@@ -9,6 +9,9 @@ import { parseAmount } from "../../lib/format";
 import { TokenPicker } from "../../components/TokenPicker";
 import { ConnectButton } from "../../components/ConnectButton";
 import { BackButton } from "../../components/BackButton";
+import { PageHeader } from "../../components/PageHeader";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
 
 export default function CreatePage() {
   const [tokenKey, setTokenKey] = useState<keyof typeof TOKENS>("LANCE");
@@ -53,49 +56,47 @@ export default function CreatePage() {
     }
   }
 
+  const label = "block font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground";
+
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-5 py-10">
       <BackButton />
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-black text-foreground">New arena</h1>
-        <ConnectButton />
+      <PageHeader eyebrow="Open a table" title="New arena" accent="go onchain" actions={<ConnectButton />} />
+
+      <div className="glass flex flex-col gap-6 rounded-2xl p-5">
+        <label className="space-y-2">
+          <span className={label}>Settlement token</span>
+          <TokenPicker value={tokenKey} onChange={pickToken} />
+        </label>
+
+        <label className="space-y-2">
+          <span className={label}>Entry stake ({TOKENS[tokenKey].symbol})</span>
+          <Input value={stake} onChange={(e) => setStake(e.target.value)} inputMode="decimal" />
+        </label>
+
+        <label className="space-y-3">
+          <span className={`${label} flex items-baseline justify-between`}>
+            Players
+            <span className="font-mono text-base text-neon">{seats}</span>
+          </span>
+          <input
+            type="range"
+            min={MIN_PLAYERS}
+            max={MAX_PLAYERS}
+            value={seats}
+            onChange={(e) => setSeats(Number(e.target.value))}
+            className="w-full accent-neon"
+          />
+          <span className="flex justify-between font-mono text-[10px] text-muted-foreground">
+            <span>{MIN_PLAYERS}</span>
+            <span>{MAX_PLAYERS}</span>
+          </span>
+        </label>
+
+        <Button onClick={create} disabled={busy} size="lg" className="w-full">
+          {busy ? "Creating…" : "Create arena"}
+        </Button>
       </div>
-
-      <label className="space-y-2">
-        <span className="text-sm text-neutral-400">Settlement token</span>
-        <TokenPicker value={tokenKey} onChange={pickToken} />
-      </label>
-
-      <label className="space-y-2">
-        <span className="text-sm text-neutral-400">Entry stake ({TOKENS[tokenKey].symbol})</span>
-        <input
-          value={stake}
-          onChange={(e) => setStake(e.target.value)}
-          inputMode="decimal"
-          className="w-full rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-3"
-        />
-      </label>
-
-      <label className="space-y-2">
-        <span className="text-sm text-neutral-400">Players: {seats}</span>
-        <input
-          type="range"
-          min={MIN_PLAYERS}
-          max={MAX_PLAYERS}
-          value={seats}
-          onChange={(e) => setSeats(Number(e.target.value))}
-          className="w-full accent-gold-400"
-        />
-      </label>
-
-      <button
-        type="button"
-        onClick={create}
-        disabled={busy}
-        className="rounded-xl bg-gold-400 px-4 py-3 font-semibold text-neutral-950 disabled:opacity-50"
-      >
-        {busy ? "Creating…" : "Create arena"}
-      </button>
     </main>
   );
 }
