@@ -19,6 +19,21 @@ const clean = (s: unknown, max: number): string | null => {
   return v ? v.slice(0, max) : null;
 };
 
+// Avatar is either a compact inline image (data:image/...;base64, capped ~64KB)
+// or an https image URL. Anything else is rejected and stored as null.
+const cleanAvatar = (s: unknown): string | null => {
+  if (s == null) return null;
+  const v = String(s).trim();
+  if (!v) return null;
+  if (v.startsWith("data:image/")) return v.length <= 64_000 ? v : null;
+  try {
+    const u = new URL(v);
+    return u.protocol === "https:" && v.length <= 512 ? v : null;
+  } catch {
+    return null;
+  }
+};
+
 export function registerProfileRoutes(app: FastifyInstance, pool: Pool) {
   // Batch profile lookup so the UI can resolve many addresses → names in one call.
   app.get<{ Querystring: { addresses?: string } }>("/api/profiles", async (req) => {
