@@ -34,6 +34,22 @@ export const getPlayer = (address: string) =>
 export const getLeaderboard = (limit = 50) =>
   fetch(`${API_URL}/api/leaderboard?limit=${limit}`, { cache: "no-store" }).then(asJson<LeaderboardRow[]>);
 
+export type ReferralInfo = { address: string; invitedCount: number; invitedBy: string | null };
+export type ReferralRow = { rank: number; address: string; name: string | null; invites: number };
+
+export const recordReferral = (referrer: string, referree: string) =>
+  fetch(`${API_URL}/api/referral`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ referrer, referree }),
+  }).then(asJson<{ ok: boolean; status: string }>);
+
+export const getReferral = (address: string) =>
+  fetch(`${API_URL}/api/referral/${address}`, { cache: "no-store" }).then(asJson<ReferralInfo>);
+
+export const getReferralLeaderboard = (limit = 20) =>
+  fetch(`${API_URL}/api/referrals/leaderboard?limit=${limit}`, { cache: "no-store" }).then(asJson<ReferralRow[]>);
+
 export type Stats = { games: number; players: number; volume: string; prizesPaid: string };
 export const getStats = () => fetch(`${API_URL}/api/stats`, { cache: "no-store" }).then(asJson<Stats>);
 

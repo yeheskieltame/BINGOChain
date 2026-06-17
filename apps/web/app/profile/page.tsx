@@ -6,6 +6,7 @@ import { LancePanel } from "../../components/LancePanel";
 import { ConnectButton } from "../../components/ConnectButton";
 import { ProfileEditor } from "../../components/ProfileEditor";
 import { PlayerStatsCard } from "../../components/PlayerStatsCard";
+import { ReferralCard } from "../../components/ReferralCard";
 
 export default function ProfilePage() {
   const { address, isConnected } = useAccount();
@@ -28,11 +29,14 @@ export default function ProfilePage() {
             <ProfileEditor />
             <PlayerStatsCard />
           </div>
-          <div className="space-y-2">
-            <h2 className="font-display text-sm font-bold uppercase tracking-wider text-muted-foreground">
-              $LANCE wallet
-            </h2>
-            <LancePanel />
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <h2 className="font-display text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                $LANCE wallet
+              </h2>
+              <LancePanel />
+            </div>
+            <ReferralCard />
           </div>
         </div>
       ) : (
