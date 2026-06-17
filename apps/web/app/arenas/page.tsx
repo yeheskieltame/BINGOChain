@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useArenas } from "../../hooks/useArenas";
 import { ArenaCard, tokenInfo } from "../../components/ArenaCard";
 import { ConnectButton } from "../../components/ConnectButton";
+import { PageHeader } from "../../components/PageHeader";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Skeleton } from "../../components/ui/skeleton";
@@ -43,65 +44,84 @@ export default function ArenasPage() {
   useEffect(() => setPage(0), [filter, term]);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-5 px-5 py-10 md:px-6">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-black text-foreground md:text-3xl">Arenas</h1>
-        {/* Connect lives in the TopNav on desktop */}
-        <div className="md:hidden">
-          <ConnectButton />
-        </div>
-      </div>
+    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-7 px-5 py-10 md:px-6">
+      <PageHeader
+        eyebrow="Onchain bingo lobby"
+        title="Arenas"
+        accent="live"
+        subtitle={
+          <>
+            Sealed boards, verifiable winners. Claim a seat, stake <span className="text-neon">$LANCE</span>, and race
+            to call the winning line.
+          </>
+        }
+        actions={
+          <>
+            <Button asChild size="lg" className="hidden md:inline-flex md:px-7">
+              <Link href="/create">+ Create arena</Link>
+            </Button>
+            <div className="md:hidden">
+              <ConnectButton />
+            </div>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-2 gap-3 md:flex">
-        <Button asChild size="lg" className="md:w-auto md:px-7">
+      {/* Mobile primary actions (the create button lives in the header on desktop). */}
+      <div className="grid grid-cols-2 gap-3 md:hidden">
+        <Button asChild size="lg">
           <Link href="/create">+ Create arena</Link>
         </Button>
-        {/* Profile is reachable from the TopNav on desktop */}
-        <Button asChild variant="secondary" size="lg" className="md:hidden">
+        <Button asChild variant="secondary" size="lg">
           <Link href="/profile">Profile</Link>
         </Button>
       </div>
 
-      <Input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Search by arena # or token…"
-        inputMode="search"
-        className="md:max-w-md"
-      />
-
-      <div className="flex items-center gap-2">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            onClick={() => setFilter(f.key)}
-            className={cn(
-              "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-              filter === f.key ? "bg-gold-400/15 text-gold-300" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-        {!loading && arenas.length > 0 && (
-          <span className="ml-auto font-mono text-xs text-muted-foreground">
-            {openCount} open · {arenas.length} recent
-          </span>
-        )}
+      {/* Glass control bar: search + state filters. */}
+      <div className="glass flex flex-col gap-3 rounded-2xl p-3 sm:flex-row sm:items-center">
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search by arena # or token…"
+          inputMode="search"
+          className="border-0 bg-white/[0.03] sm:max-w-xs"
+        />
+        <div className="flex items-center gap-1.5 sm:ml-auto">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => setFilter(f.key)}
+              className={cn(
+                "rounded-full px-3.5 py-1.5 font-mono text-xs uppercase tracking-wider transition-colors",
+                filter === f.key
+                  ? "bg-neon/15 text-neon ring-1 ring-neon/30"
+                  : "text-muted-foreground hover:bg-white/5 hover:text-cream",
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {!loading && arenas.length > 0 && (
+        <p className="-mt-3 text-right font-mono text-xs text-muted-foreground">
+          {openCount} open · {arenas.length} recent
+        </p>
+      )}
 
       {error ? (
         <p className="text-sm text-destructive">Couldn’t load arenas: {error}</p>
       ) : loading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-[104px] w-full rounded-xl" />
+            <Skeleton key={i} className="h-[168px] w-full rounded-2xl" />
           ))}
         </div>
       ) : sorted.length === 0 ? (
         <div className="glass mx-auto flex w-full max-w-md flex-col items-center gap-3 rounded-2xl p-10 text-center">
-          <p className="font-display text-lg font-bold text-foreground">
+          <p className="font-anton text-xl uppercase text-cream">
             {arenas.length === 0 ? "No arenas yet" : "Nothing here"}
           </p>
           <p className="text-sm text-muted-foreground">
@@ -112,14 +132,14 @@ export default function ArenasPage() {
           </Button>
           <Link
             href="/how-to-play"
-            className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-gold-300 hover:underline"
+            className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-neon hover:underline"
           >
             New here? How to play →
           </Link>
         </div>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {pageItems.map((a) => (
               <ArenaCard key={a.id.toString()} arena={a} />
             ))}
