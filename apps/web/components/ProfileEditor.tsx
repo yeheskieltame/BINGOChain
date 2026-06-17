@@ -8,6 +8,39 @@ import { Input } from "./ui/input";
 import { shortAddress } from "../lib/format";
 import { getNonce, getPlayer, putProfile } from "../lib/api";
 
+// Downscale + square-crop a picked image to a compact JPEG data-URI (~160px),
+// shrinking quality until it fits the backend's data-URI cap. Keeps avatars tiny
+// so they store inline with no file hosting.
+async function fileToAvatarDataUrl(file: File): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result as string);
+    r.onerror = () => reject(new Error("read failed"));
+    r.readAsDataURL(file);
+  });
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(new Error("decode failed"));
+    im.src = dataUrl;
+  });
+  const SIZE = 160;
+  const canvas = document.createElement("canvas");
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("no canvas");
+  const side = Math.min(img.width, img.height);
+  ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
+  let q = 0.82;
+  let out = canvas.toDataURL("image/jpeg", q);
+  while (out.length > 60_000 && q > 0.4) {
+    q -= 0.1;
+    out = canvas.toDataURL("image/jpeg", q);
+  }
+  return out;
+}
+
 export function ProfileEditor() {
   const { address } = useAccount();
   const { signMessageAsync } = useSignMessage();
