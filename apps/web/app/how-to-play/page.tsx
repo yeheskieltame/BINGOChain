@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LayoutGrid, Dices, Target, Eye, Trophy, ShieldCheck } from "lucide-react";
 import { BackButton } from "../../components/BackButton";
+import { PageHeader } from "../../components/PageHeader";
 import { Button } from "../../components/ui/button";
 
 export const metadata = {
@@ -40,13 +41,12 @@ export default function HowToPlayPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-5 py-10 md:px-6">
       <BackButton />
-      <header className="space-y-2">
-        <h1 className="font-display text-3xl font-black text-foreground md:text-4xl">How to play</h1>
-        <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
-          BINGOChain is bingo you can&apos;t cheat at. Boards are sealed before the game and the winner is proven by
-          replaying every move on-chain.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Provably fair bingo"
+        title="How to play"
+        accent="strategy"
+        subtitle="BINGOChain is bingo you can't cheat at. Boards are sealed before the game and the winner is proven by replaying every move on-chain."
+      />
 
       <ol className="space-y-3">
         {STEPS.map((s, i) => {

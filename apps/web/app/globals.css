@@ -56,10 +56,8 @@
   }
   body {
     @apply min-h-screen bg-background font-sans text-foreground antialiased;
-    background-image:
-      radial-gradient(55rem 55rem at 50% -25%, hsl(var(--gold-400) / 0.06), transparent 60%),
-      radial-gradient(40rem 40rem at 100% 0%, hsl(var(--state-playing) / 0.04), transparent 55%);
-    background-attachment: fixed;
+    /* The cinematic backdrop (SpaceBackdrop / the landing video) supplies depth;
+       the body just holds the navy base color beneath it. */
   }
   /* Tabular, slashed-zero numerals wherever we render on-chain numbers */
   .font-mono {
@@ -127,6 +125,13 @@
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
+}
+
+/* Reusable fractal-noise texture (no positioning) — applied by SpaceBackdrop to
+   grain the cosmic backdrop without touching the legibility of page content. */
+.noise-bg {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
 }
 
 /* Full-screen grain overlay — a fractal-noise data URI stands in for /texture.png,

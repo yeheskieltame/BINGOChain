@@ -1,7 +1,7 @@
 "use client";
 
 import { useAccount } from "wagmi";
-import { BackButton } from "../../components/BackButton";
+import { PageHeader } from "../../components/PageHeader";
 import { LancePanel } from "../../components/LancePanel";
 import { ConnectButton } from "../../components/ConnectButton";
 import { ProfileEditor } from "../../components/ProfileEditor";
@@ -14,15 +14,17 @@ export default function ProfilePage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-5 px-5 py-10 md:px-6">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-black text-foreground md:text-3xl">Profile</h1>
-        {/* Connect lives in the TopNav on desktop */}
-        <div className="md:hidden">
-          <ConnectButton />
-        </div>
-      </div>
-
-      <BackButton />
+      <PageHeader
+        eyebrow="Your record"
+        title="Profile"
+        accent="stats"
+        actions={
+          // Connect lives in the TopNav on desktop.
+          <div className="md:hidden">
+            <ConnectButton />
+          </div>
+        }
+      />
 
       {isConnected && address ? (
         <div className="grid gap-5 lg:grid-cols-2 lg:items-start">

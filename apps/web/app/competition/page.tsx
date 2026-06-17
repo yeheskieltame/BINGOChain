@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { BackButton } from "../../components/BackButton";
+import { PageHeader } from "../../components/PageHeader";
 import { Player } from "../../components/Player";
 import { Countdown } from "../../components/Countdown";
 import { Badge } from "../../components/ui/badge";
@@ -54,11 +55,17 @@ export default function CupPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-5 px-5 py-10 md:px-6">
       <BackButton />
-      <h1 className="font-display text-2xl font-black text-foreground md:text-3xl">🏆 Cup</h1>
-      <p className="text-sm text-muted-foreground">
-        Compete for <span className="text-gold-300">$LANCE</span> by total volume staked. Live events run a countdown;
-        past events keep their final standings.
-      </p>
+      <PageHeader
+        eyebrow="Tournament"
+        title="Cup"
+        accent="for glory"
+        subtitle={
+          <>
+            Compete for <span className="text-neon">$LANCE</span> by total volume staked. Live events run a countdown;
+            past events keep their final standings.
+          </>
+        }
+      />
 
       <div className="flex gap-2">
         {(["live", "past"] as const).map((t) => (
@@ -67,8 +74,10 @@ export default function CupPage() {
             type="button"
             onClick={() => setTab(t)}
             className={cn(
-              "rounded-full px-4 py-1.5 text-sm font-medium capitalize transition-colors",
-              tab === t ? "bg-gold-400/15 text-gold-300" : "text-muted-foreground hover:text-foreground",
+              "rounded-full px-4 py-1.5 font-mono text-xs uppercase tracking-wider transition-colors",
+              tab === t
+                ? "bg-neon/15 text-neon ring-1 ring-neon/30"
+                : "text-muted-foreground hover:bg-white/5 hover:text-cream",
             )}
           >
             {t}

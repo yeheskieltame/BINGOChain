@@ -4,6 +4,7 @@ import { Bricolage_Grotesque, Hanken_Grotesk, Geist_Mono, Anton, Condiment } fro
 import { Providers } from "../components/Providers";
 import { BottomNav } from "../components/BottomNav";
 import { TopNav } from "../components/TopNav";
+import { SpaceBackdrop } from "../components/SpaceBackdrop";
 import { ReferralCapture } from "../components/ReferralCapture";
 import "./globals.css";
 
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable} ${anton.variable} ${condiment.variable}`}>
       <body>
         <Providers>
+          <SpaceBackdrop />
           <ReferralCapture />
           <TopNav />
           <div className="pb-24 md:pb-0">{children}</div>
