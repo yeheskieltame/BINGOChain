@@ -169,11 +169,33 @@ export default function ArenaPage() {
         </div>
       )}
 
-      {/* Created: join */}
+      {/* Created: arrange your board, then join */}
       {state === 0 && !joined && (
-        <Button onClick={() => run(join)} disabled={busy || !address} size="lg">
-          {busy ? "Joining…" : "Generate board + join"}
-        </Button>
+        <div className="glass space-y-4 rounded-2xl p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="font-anton text-base uppercase text-cream">Build your board</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Tap two cells to swap. Numbers are called 1-25 in turn, so place them to complete lines early.</p>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setDraftBoard(randomBoard())}
+              disabled={busy}
+            >
+              Shuffle
+            </Button>
+          </div>
+          {draftBoard && <BoardBuilder board={draftBoard} onChange={setDraftBoard} disabled={busy} />}
+          <Button
+            onClick={() => draftBoard && run(() => join(draftBoard))}
+            disabled={busy || !address || !draftBoard}
+            size="lg"
+            className="w-full"
+          >
+            {busy ? "Joining…" : "Join with this board"}
+          </Button>
+        </div>
       )}
       {state === 0 && joined && <p className="text-sm text-state-open">Joined — waiting for the arena to fill.</p>}
 
