@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useAccount } from "wagmi";
+import { BackButton } from "../../components/BackButton";
 import { LancePanel } from "../../components/LancePanel";
 import { ConnectButton } from "../../components/ConnectButton";
 import { ProfileEditor } from "../../components/ProfileEditor";
@@ -17,9 +17,7 @@ export default function ProfilePage() {
         <ConnectButton />
       </div>
 
-      <Link href="/arenas" className="text-sm text-muted-foreground hover:text-foreground">
-        ← Back to arenas
-      </Link>
+      <BackButton />
 
       {isConnected && address ? (
         <>
