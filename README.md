@@ -1,6 +1,12 @@
-# BINGOChain
+<p align="center">
+  <img src="apps/web/public/logo.png" alt="BINGOChain logo" width="128" height="128" />
+</p>
+
+<h1 align="center">BINGOChain</h1>
 
 **Strategic onchain bingo on Celo. Boards are sealed before play, every called number is recorded onchain, and the full game is revealed at the end so cheating is mathematically impossible.**
+
+Live app: [bingochain.vercel.app](https://bingochain.vercel.app) · staked in [$LANCE](https://claudelance.xyz)
 
 > A PvP arena where players design their own 5×5 board, lock it in a smart contract, and race to BINGO. No trusted server, no hidden randomness, no way to fake a win.
 
@@ -85,8 +91,23 @@ Created → Committed → Playing → Revealing → Settled
 
 - **Contracts:** Solidity 0.8.24, Foundry, OpenZeppelin v5 **upgradeable** — UUPS proxy (EIP-1822), `Ownable2StepUpgradeable`, `PausableUpgradeable`, EIP-7201 namespaced storage
 - **Chain:** Celo Mainnet — mainnet-only by design (sub-cent fees make per-call micro-transactions economical; local testing uses an anvil mainnet fork)
-- **Frontend:** MiniPay-compatible mini app (phone-number identity, no wallet setup)
-- **Settlement token:** CELO (cUSD/USDC support planned)
+- **Frontend:** Next.js 16 (App Router) + React 19, wagmi/viem, Tailwind — live at [bingochain.vercel.app](https://bingochain.vercel.app), MiniPay-compatible
+- **Backend:** Fastify 5 + Postgres (profiles, avatars, stats, Cup competitions, referrals) plus a viem indexer; deployed on Railway
+- **Settlement tokens:** $LANCE (default), CELO, cUSD, USDC, USDT
+
+## The app
+
+Beyond the contract, BINGOChain ships a full web app at [bingochain.vercel.app](https://bingochain.vercel.app):
+
+- **Arena lobby** — browse open and live arenas, filter by state, search by id or token, and create your own.
+- **Live play** — join an arena, get a sealed 5×5 board, call numbers in turn, claim BINGO, reveal, and settle, all onchain.
+- **Cup** — several competitions run concurrently (Daily Sprint, Weekend Showdown, Weekly Volume Cup), each with its own time window, live countdown, and leaderboard, shown together in a grid.
+- **Profiles** — set a display name and bio, upload a profile photo, and see your onchain stats, recent games, and achievements.
+- **$LANCE panel** — buy $LANCE with CELO at NAV or redeem it back, then stake it to play.
+- **Referrals** — invite players and earn $LANCE when they qualify.
+- **Cinematic UI** — a space-themed cosmic backdrop, Anton display type with neon accents, and liquid-glass surfaces across every page.
+
+BINGOChain is built and shipped on [Claudelance](https://claudelance.xyz), the onchain marketplace where AI agents take bounties for real rewards.
 
 ## Repository layout
 
@@ -99,7 +120,9 @@ BINGOChain/
 │   ├── test/         # unit / fuzz / invariant suites
 │   └── lib/          # vendored deps (OpenZeppelin, forge-std)
 ├── apps/
-│   └── web/          # MiniPay mini app (frontend) — planned
+│   ├── web/          # Next.js app — lobby, live play, Cup, profiles (bingochain.vercel.app)
+│   └── api/          # Fastify + Postgres backend + viem indexer (Railway)
+├── docs/             # security review, upgrade runbook
 ├── README.md · LICENSE · SECURITY.md · CONTRIBUTING.md
 └── .github/          # CI (build · fmt · test · Slither)
 ```
@@ -132,9 +155,11 @@ BINGOChain is built around what Celo does best. Sub-cent fees make a game with 3
 - [x] Reclaim (`cancelArena`) + admin (fee/treasury/pause/rescue) + security review (Slither, 0 vuln)
 - [x] **Live on Celo Mainnet** (verified) — proxy [`0x8bE7c07C…32f1`](https://celoscan.io/address/0x8bE7c07CCF9FF515d82D4c36aB4EB937941432f1#code), owner = Safe multisig
 - [x] Foundry unit + fuzz + invariant suite (86 tests; 16k-call money-conservation invariants)
+- [x] Web app live: lobby, create/join, live play, claim, reveal, settle, withdraw
+- [x] Profiles (name, bio, photo) · stats · achievements · $LANCE buy/redeem · referrals
+- [x] Cup: multiple concurrent competitions, each with its own window and leaderboard
 - [ ] `estimateGasReserve(numPlayers)` view + worst-case lock from gas report
 - [ ] Gasless relayer (reserve-reimbursed) — Phase 2
-- [ ] MiniPay frontend (create arena, join, play, reveal)
 
 ## License
 

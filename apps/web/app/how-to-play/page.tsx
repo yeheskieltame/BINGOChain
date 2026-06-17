@@ -18,7 +18,7 @@ const STEPS = [
   {
     icon: Dices,
     title: "Call numbers in turn",
-    desc: "Players take turns calling numbers 1–75. Every call is recorded on-chain, so the whole game is public and replayable.",
+    desc: "Players take turns calling numbers 1-25. Every call is recorded on-chain, so the whole game is public and replayable.",
   },
   {
     icon: Target,

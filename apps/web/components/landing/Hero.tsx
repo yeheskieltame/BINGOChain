@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { VideoBg } from "./VideoBg";
 import { SocialIcons } from "./SocialIcons";
@@ -23,7 +24,10 @@ export function Hero() {
 
       <div className="relative z-10 mx-auto flex min-h-screen max-w-[1831px] flex-col px-5 py-7 sm:px-8 md:px-12">
         <header className="flex items-center justify-between gap-4">
-          <span className="font-anton text-base uppercase tracking-wide text-cream">BINGOChain</span>
+          <span className="flex items-center gap-2.5">
+            <Image src="/logo.png" alt="" width={36} height={36} className="h-9 w-9 rounded-lg" priority />
+            <span className="font-anton text-base uppercase tracking-wide text-cream">BINGOChain</span>
+          </span>
           <nav className="liquid-glass hidden rounded-[28px] px-[52px] py-[24px] lg:block">
             <ul className="flex items-center gap-8">
               {NAV.map(([label, href]) => (
