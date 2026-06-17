@@ -18,6 +18,7 @@ import { useProfiles } from "../../../hooks/useProfiles";
 import { Button } from "../../../components/ui/button";
 import { Badge, type BadgeProps } from "../../../components/ui/badge";
 import { BackButton } from "../../../components/BackButton";
+import { ArenaResult } from "../../../components/ArenaResult";
 
 type Saved = { board: number[]; salt: `0x${string}` };
 
@@ -193,6 +194,7 @@ export default function ArenaPage() {
           <Button variant="secondary" onClick={() => run(() => write("settle", [id]))} disabled={busy} size="lg">
             Settle
           </Button>
+          <ArenaResult arenaId={id.toString()} called={calledSet} />
         </>
       )}
 
@@ -207,6 +209,7 @@ export default function ArenaPage() {
               Withdraw
             </Button>
           )}
+          <ArenaResult arenaId={id.toString()} called={calledSet} />
         </>
       )}
     </main>

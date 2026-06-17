@@ -97,6 +97,39 @@ app.get<{ Params: { address: string } }>("/api/player/:address", async (req) => 
   };
 });
 
+// Full arena detail — match + per-player outcome/prize + revealed boards.
+app.get<{ Params: { id: string } }>("/api/arena/:id", async (req, reply) => {
+  const id = req.params.id;
+  if (!/^\d+$/.test(id)) return reply.code(400).send({ error: "bad_id" });
+  const m = await pool.query("select * from matches where arena_id=$1", [id]);
+  if (!m.rows[0]) return reply.code(404).send({ error: "not_found", id });
+  const pm = await pool.query(
+    `select pm.player_address, pm.outcome, pm.prize_won, p.name
+     from player_matches pm left join players p on p.address = pm.player_address
+     where pm.arena_id=$1`,
+    [id],
+  );
+  const rb = await pool.query("select player_address, board from revealed_boards where arena_id=$1", [id]);
+  const row = m.rows[0];
+  return {
+    arenaId: id,
+    match: {
+      token: row.token,
+      stake: fmt(row.stake),
+      prizePool: fmt(row.prize_pool),
+      fee: fmt(row.fee),
+      winnerCount: row.winner_count,
+      createdAt: row.created_at,
+      settledAt: row.settled_at,
+    },
+    players: pm.rows.map((r) => ({ address: r.player_address, name: r.name, outcome: r.outcome, prize: fmt(r.prize_won) })),
+    winners: pm.rows
+      .filter((r) => r.outcome === "win")
+      .map((r) => ({ address: r.player_address, name: r.name, prize: fmt(r.prize_won) })),
+    boards: rb.rows.map((r) => ({ player: r.player_address, board: r.board as number[] })),
+  };
+});
+
 // Profile read stub (write/SIWE lands in Slice 5).
 app.get<{ Params: { address: string } }>("/api/profile/:address", async (req, reply) => {
   const address = req.params.address.toLowerCase();

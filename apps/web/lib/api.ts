@@ -37,6 +37,25 @@ export const getLeaderboard = (limit = 50) =>
 export type Stats = { games: number; players: number; volume: string; prizesPaid: string };
 export const getStats = () => fetch(`${API_URL}/api/stats`, { cache: "no-store" }).then(asJson<Stats>);
 
+export type ArenaWinner = { address: string; name: string | null; prize: string };
+export type ArenaDetail = {
+  arenaId: string;
+  match: {
+    token: string;
+    stake: string;
+    prizePool: string;
+    fee: string;
+    winnerCount: number | null;
+    createdAt: string | null;
+    settledAt: string | null;
+  };
+  players: { address: string; name: string | null; outcome: string | null; prize: string }[];
+  winners: ArenaWinner[];
+  boards: { player: string; board: number[] }[];
+};
+export const getArena = (id: string) =>
+  fetch(`${API_URL}/api/arena/${id}`, { cache: "no-store" }).then(asJson<ArenaDetail>);
+
 export const getNonce = (address: string) =>
   fetch(`${API_URL}/api/auth/nonce/${address}`, { cache: "no-store" }).then(asJson<{ nonce: string; message: string }>);
 
