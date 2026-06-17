@@ -56,6 +56,21 @@ export type ArenaDetail = {
 export const getArena = (id: string) =>
   fetch(`${API_URL}/api/arena/${id}`, { cache: "no-store" }).then(asJson<ArenaDetail>);
 
+export type Competition = {
+  id: string;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  prizePerWinner: string | null;
+  topN: number | null;
+  token: string | null;
+  status: "upcoming" | "live" | "past";
+};
+export const getCompetitions = () =>
+  fetch(`${API_URL}/api/competitions`, { cache: "no-store" }).then(asJson<Competition[]>);
+export const getCompetitionLeaderboard = (id: string) =>
+  fetch(`${API_URL}/api/competitions/${id}/leaderboard`, { cache: "no-store" }).then(asJson<LeaderboardRow[]>);
+
 export const getNonce = (address: string) =>
   fetch(`${API_URL}/api/auth/nonce/${address}`, { cache: "no-store" }).then(asJson<{ nonce: string; message: string }>);
 
