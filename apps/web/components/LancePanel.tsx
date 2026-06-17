@@ -84,7 +84,7 @@ export function LancePanel() {
   const rate = fmt((WAD * WAD) / nav, 18, 0);
 
   return (
-    <div className="space-y-4 rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
+    <div className="glass space-y-4 rounded-2xl p-5">
       <div className="flex items-baseline justify-between">
         <h2 className="text-lg font-black text-gold-400">$LANCE</h2>
         <span className="text-xs text-neutral-500">~{rate} LANCE / CELO</span>
