@@ -91,8 +91,9 @@ Created → Committed → Playing → Revealing → Settled
 
 - **Contracts:** Solidity 0.8.24, Foundry, OpenZeppelin v5 **upgradeable** — UUPS proxy (EIP-1822), `Ownable2StepUpgradeable`, `PausableUpgradeable`, EIP-7201 namespaced storage
 - **Chain:** Celo Mainnet — mainnet-only by design (sub-cent fees make per-call micro-transactions economical; local testing uses an anvil mainnet fork)
-- **Frontend:** MiniPay-compatible mini app (phone-number identity, no wallet setup)
-- **Settlement token:** CELO (cUSD/USDC support planned)
+- **Frontend:** Next.js 16 (App Router) + React 19, wagmi/viem, Tailwind — live at [bingochain.vercel.app](https://bingochain.vercel.app), MiniPay-compatible
+- **Backend:** Fastify 5 + Postgres (profiles, avatars, stats, Cup competitions, referrals) plus a viem indexer; deployed on Railway
+- **Settlement tokens:** $LANCE (default), CELO, cUSD, USDC, USDT
 
 ## Repository layout
 
