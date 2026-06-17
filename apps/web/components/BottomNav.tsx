@@ -18,7 +18,7 @@ export function BottomNav() {
   const path = usePathname() ?? "/";
   if (path === "/") return null;
   return (
-    <nav className="liquid-glass fixed inset-x-4 bottom-4 z-50 rounded-[1.5rem] md:hidden">
+    <nav className="fixed inset-x-4 bottom-4 z-50 rounded-[1.5rem] border border-white/10 bg-navy/80 shadow-lg shadow-black/40 backdrop-blur-xl md:hidden">
       <div className="flex items-stretch justify-around px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
         {TABS.map(({ href, label, icon: Icon }) => {
           const active = href === "/" ? path === "/" : path.startsWith(href);
