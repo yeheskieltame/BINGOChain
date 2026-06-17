@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useArenas } from "../../hooks/useArenas";
 import { ArenaCard, tokenInfo } from "../../components/ArenaCard";
@@ -19,10 +19,13 @@ const FILTERS = [
   { key: "live", label: "Live", match: (s: string) => s === "playing" || s === "committed" },
 ] as const;
 
+const PAGE_SIZE = 8;
+
 export default function ArenasPage() {
   const { arenas, loading, error } = useArenas();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("open");
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(0);
   const active = FILTERS.find((f) => f.key === filter)!;
 
   const term = q.trim().toLowerCase();
@@ -33,6 +36,11 @@ export default function ArenasPage() {
       (a) => !term || a.id.toString().includes(term) || (tokenInfo(a.token)?.symbol ?? "").toLowerCase().includes(term),
     );
   const openCount = arenas.filter((a) => a.state === "created").length;
+
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const pageItems = sorted.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+  // Reset to the first page whenever the filter or search term changes.
+  useEffect(() => setPage(0), [filter, term]);
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-5 py-10">
@@ -94,11 +102,31 @@ export default function ArenasPage() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-3">
-          {sorted.map((a) => (
-            <ArenaCard key={a.id.toString()} arena={a} />
-          ))}
-        </div>
+        <>
+          <div className="space-y-3">
+            {pageItems.map((a) => (
+              <ArenaCard key={a.id.toString()} arena={a} />
+            ))}
+          </div>
+          {pageCount > 1 && (
+            <div className="flex items-center justify-between pt-1">
+              <Button variant="secondary" size="sm" disabled={page <= 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
+                Prev
+              </Button>
+              <span className="font-mono text-xs text-muted-foreground">
+                Page {Math.min(page, pageCount - 1) + 1} / {pageCount}
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={page >= pageCount - 1}
+                onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </main>
   );
