@@ -79,6 +79,16 @@ export default function ArenaPage() {
   const savedMismatch =
     !!mine && hasCommit && commitment(mine.board, mine.salt).toLowerCase() !== onchainCommit!.toLowerCase();
 
+  const revealedMe = useReadContract({
+    abi: bingoAbi,
+    address: BINGO_ADDRESS,
+    functionName: "hasRevealed",
+    args: address ? [id, address] : undefined,
+    chainId: CHAIN_ID,
+    query: { enabled: !!address && !!arena, refetchInterval: 3000 },
+  });
+  const iRevealed = revealedMe.data === true;
+
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
     try {
@@ -262,7 +272,11 @@ export default function ArenaPage() {
       {/* Revealing: reveal + settle */}
       {state === 3 && (
         <>
-          {savedMismatch ? (
+          {iRevealed ? (
+            <p className="rounded-xl border border-state-open/30 bg-state-open/10 p-3 text-sm text-state-open">
+              Board revealed. Waiting for all players to reveal or the window to close, then anyone can settle.
+            </p>
+          ) : savedMismatch ? (
             <p className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               Your saved board for this arena doesn&apos;t match what you committed on-chain, so it can&apos;t be
               revealed (the saved copy was overwritten on this device). Nothing to do here; the arena settles
