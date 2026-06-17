@@ -19,7 +19,7 @@ const FILTERS = [
   { key: "live", label: "Live", match: (s: string) => s === "playing" || s === "committed" },
 ] as const;
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 9;
 
 export default function ArenasPage() {
   const { arenas, loading, error } = useArenas();
@@ -43,22 +43,32 @@ export default function ArenasPage() {
   useEffect(() => setPage(0), [filter, term]);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-5 py-10">
+    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-5 px-5 py-10 md:px-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-black text-foreground">Arenas</h1>
-        <ConnectButton />
+        <h1 className="font-display text-2xl font-black text-foreground md:text-3xl">Arenas</h1>
+        {/* Connect lives in the TopNav on desktop */}
+        <div className="md:hidden">
+          <ConnectButton />
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Button asChild size="lg">
+      <div className="grid grid-cols-2 gap-3 md:flex">
+        <Button asChild size="lg" className="md:w-auto md:px-7">
           <Link href="/create">+ Create arena</Link>
         </Button>
-        <Button asChild variant="secondary" size="lg">
+        {/* Profile is reachable from the TopNav on desktop */}
+        <Button asChild variant="secondary" size="lg" className="md:hidden">
           <Link href="/profile">Profile</Link>
         </Button>
       </div>
 
-      <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by arena # or token…" inputMode="search" />
+      <Input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Search by arena # or token…"
+        inputMode="search"
+        className="md:max-w-md"
+      />
 
       <div className="flex items-center gap-2">
         {FILTERS.map((f) => (
@@ -84,13 +94,13 @@ export default function ArenasPage() {
       {error ? (
         <p className="text-sm text-destructive">Couldn’t load arenas: {error}</p>
       ) : loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-[88px] w-full rounded-xl" />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-[104px] w-full rounded-xl" />
           ))}
         </div>
       ) : sorted.length === 0 ? (
-        <div className="glass flex flex-col items-center gap-3 rounded-2xl p-10 text-center">
+        <div className="glass mx-auto flex w-full max-w-md flex-col items-center gap-3 rounded-2xl p-10 text-center">
           <p className="font-display text-lg font-bold text-foreground">
             {arenas.length === 0 ? "No arenas yet" : "Nothing here"}
           </p>
@@ -103,7 +113,7 @@ export default function ArenasPage() {
         </div>
       ) : (
         <>
-          <div className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {pageItems.map((a) => (
               <ArenaCard key={a.id.toString()} arena={a} />
             ))}
