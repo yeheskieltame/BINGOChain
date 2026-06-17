@@ -20,7 +20,7 @@ const FILTERS = [
 
 export default function ArenasPage() {
   const { arenas, loading, error } = useArenas();
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("open");
   const active = FILTERS.find((f) => f.key === filter)!;
 
   const sorted = [...arenas]
