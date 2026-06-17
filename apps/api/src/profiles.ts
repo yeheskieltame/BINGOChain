@@ -44,7 +44,8 @@ export function registerProfileRoutes(app: FastifyInstance, pool: Pool) {
       .slice(0, 100);
     if (!addrs.length) return [];
     const { rows } = await pool.query(
-      "select address, name, avatar_seed from players where address = any($1) and name is not null",
+      `select address, name, avatar_seed, avatar_url from players
+       where address = any($1) and (name is not null or avatar_url is not null)`,
       [addrs],
     );
     return rows;
