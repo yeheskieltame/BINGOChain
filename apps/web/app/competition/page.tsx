@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Player } from "../../components/Player";
+import { BackButton } from "../../components/BackButton";
 import { getLeaderboard, getStats, type LeaderboardRow, type Stats } from "../../lib/api";
 
 const MEDAL = ["🥇", "🥈", "🥉"];
@@ -30,6 +31,7 @@ export default function LeaderboardPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-5 px-5 py-10">
+      <BackButton />
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl font-black text-foreground">🏆 Leaderboard</h1>
         <Link href="/arenas" className="text-sm text-muted-foreground hover:text-foreground">

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Bricolage_Grotesque, Hanken_Grotesk, Geist_Mono } from "next/font/google";
 import { Providers } from "../components/Providers";
+import { BottomNav } from "../components/BottomNav";
 import "./globals.css";
 
 // Premium Onchain type system: a characterful grotesque for display, a clean
@@ -25,7 +26,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <div className="pb-24">{children}</div>
+          <BottomNav />
+        </Providers>
       </body>
     </html>
   );
