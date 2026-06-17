@@ -12,6 +12,10 @@ CREATE TABLE IF NOT EXISTS players (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
+-- Profile image: a small avatar, either an https image URL or a compact
+-- data-URI. Added idempotently (schema.sql runs on every boot).
+ALTER TABLE players ADD COLUMN IF NOT EXISTS avatar_url text;
+
 CREATE TABLE IF NOT EXISTS matches (
   arena_id     bigint PRIMARY KEY,
   token        text,
