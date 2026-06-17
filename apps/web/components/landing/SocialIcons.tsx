@@ -17,7 +17,7 @@ function GithubIcon() {
 }
 
 const LINKS = [
-  { node: <Mail className="size-5" />, href: "mailto:hello@bingochain.xyz", label: "Email" },
+  { node: <Mail className="size-5" />, href: "mailto:support@claudelance.xyz", label: "Email support" },
   { node: <XIcon />, href: "https://twitter.com", label: "X" },
   { node: <GithubIcon />, href: "https://github.com/yeheskieltame/BINGOChain", label: "GitHub" },
 ];
