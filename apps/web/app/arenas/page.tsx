@@ -110,6 +110,12 @@ export default function ArenasPage() {
           <Button asChild>
             <Link href="/create">+ Create arena</Link>
           </Button>
+          <Link
+            href="/how-to-play"
+            className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-gold-300 hover:underline"
+          >
+            New here? How to play →
+          </Link>
         </div>
       ) : (
         <>

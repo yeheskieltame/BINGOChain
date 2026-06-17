@@ -72,6 +72,12 @@ export default function Home() {
               <Button asChild variant={isConnected ? "default" : "secondary"} size="lg">
                 <Link href="/arenas">Enter the lobby →</Link>
               </Button>
+              <Link
+                href="/how-to-play"
+                className="text-center text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-gold-300 hover:underline"
+              >
+                New here? How to play →
+              </Link>
               {isMiniPay && <p className="text-center text-xs text-state-open">MiniPay detected — auto-connected.</p>}
             </motion.div>
           </div>
