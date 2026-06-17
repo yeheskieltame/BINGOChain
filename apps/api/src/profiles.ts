@@ -10,6 +10,12 @@ import { isAddress, verifyMessage } from "viem";
 const TTL_MS = 10 * 60 * 1000;
 const nonces = new Map<string, { nonce: string; exp: number }>();
 
+// Sweep expired nonces so the in-memory map cannot grow unbounded over time.
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of nonces) if (v.exp < now) nonces.delete(k);
+}, 60_000).unref?.();
+
 const messageFor = (address: string, nonce: string) =>
   `BINGOChain\n\nSign in to update your profile.\n\nAddress: ${address}\nNonce: ${nonce}`;
 
