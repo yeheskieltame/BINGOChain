@@ -4,6 +4,7 @@ import { Bricolage_Grotesque, Hanken_Grotesk, Geist_Mono } from "next/font/googl
 import { Providers } from "../components/Providers";
 import { BottomNav } from "../components/BottomNav";
 import { TopNav } from "../components/TopNav";
+import { ReferralCapture } from "../components/ReferralCapture";
 import "./globals.css";
 
 // Premium Onchain type system: a characterful grotesque for display, a clean
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
       <body>
         <Providers>
+          <ReferralCapture />
           <TopNav />
           <div className="pb-24 md:pb-0">{children}</div>
           <BottomNav />
