@@ -75,13 +75,15 @@ export function ArenaCard({ arena }: { arena: ArenaSummary }) {
 
       {/* Seat bar — filled = taken, hollow = open. A small, on-theme tell of how
           close the arena is to locking. */}
-      <div className="relative mt-4 flex items-center gap-1.5">
+      <div className="relative mt-3 flex items-center gap-1.5">
         {Array.from({ length: seats }).map((_, i) => (
           <span
             key={i}
             className={cn(
-              "h-1.5 flex-1 rounded-full transition-colors duration-300",
-              i < arena.joinedCount ? "bg-neon/80" : "bg-white/10",
+              "h-2 flex-1 rounded-full transition-all duration-300",
+              i < arena.joinedCount
+                ? "bg-neon shadow-[0_0_8px_hsl(var(--primary)/0.65)]"
+                : "border border-white/10 bg-white/[0.04]",
             )}
           />
         ))}
