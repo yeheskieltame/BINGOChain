@@ -76,9 +76,8 @@ export default function ArenaPage() {
     }
   }
 
-  async function join() {
+  async function join(board: number[]) {
     if (!address || !arena) return;
-    const board = randomBoard();
     const salt = randomSalt();
     saveBoard(id.toString(), address, { board, salt });
     if (allowance < arena.stake) await approve();
