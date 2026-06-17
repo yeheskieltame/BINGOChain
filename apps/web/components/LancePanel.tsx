@@ -91,13 +91,13 @@ export function LancePanel() {
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-center text-xs">
-        <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2">
-          <div className="text-neutral-500">Your $LANCE</div>
-          <div className="mt-0.5 font-mono text-sm font-semibold">{fmt(lance)}</div>
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+          <div className="text-muted-foreground">Your $LANCE</div>
+          <div className="mt-0.5 font-mono text-sm font-semibold text-cream">{fmt(lance)}</div>
         </div>
-        <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2">
-          <div className="text-neutral-500">Your CELO</div>
-          <div className="mt-0.5 font-mono text-sm font-semibold">{fmt(celo)}</div>
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+          <div className="text-muted-foreground">Your CELO</div>
+          <div className="mt-0.5 font-mono text-sm font-semibold text-cream">{fmt(celo)}</div>
         </div>
       </div>
 
