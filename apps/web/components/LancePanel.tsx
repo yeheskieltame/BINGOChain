@@ -146,10 +146,10 @@ export function LancePanel() {
         {over ? <span className="text-xs text-destructive">Amount exceeds your balance.</span> : null}
       </label>
 
-      <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2 text-xs text-neutral-400">
+      <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-xs text-muted-foreground">
         {mode === "buy"
-          ? <>You receive ≈ <span className="font-mono text-neutral-200">{fmt(preview)}</span> $LANCE</>
-          : <>You receive ≈ <span className="font-mono text-neutral-200">{fmt(preview)}</span> CELO <span className="opacity-70">(after {(feeBps / 100).toFixed(2)}% fee)</span></>}
+          ? <>You receive ≈ <span className="font-mono text-cream">{fmt(preview)}</span> $LANCE</>
+          : <>You receive ≈ <span className="font-mono text-cream">{fmt(preview)}</span> CELO <span className="opacity-70">(after {(feeBps / 100).toFixed(2)}% fee)</span></>}
       </div>
 
       <button
