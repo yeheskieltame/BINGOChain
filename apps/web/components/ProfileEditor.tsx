@@ -90,7 +90,7 @@ export function ProfileEditor() {
     try {
       const { message } = await getNonce(address);
       const signature = await signMessageAsync({ message });
-      await putProfile(address, { name, bio, signature });
+      await putProfile(address, { name, avatarUrl, bio, signature });
       setMsg("Saved ✓");
     } catch (e) {
       const m = e instanceof Error ? e.message : "error";
