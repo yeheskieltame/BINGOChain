@@ -40,6 +40,11 @@ export default function ArenaPage() {
   const { arena, players, calls, refetch } = useArena(id);
   const profiles = useProfiles(players);
   const [busy, setBusy] = useState(false);
+  // The board the player arranges before joining. Seeded with a random layout on
+  // the client (not during SSR) so there's no hydration mismatch; the player then
+  // swaps cells to design it. Always a valid permutation of 1..25.
+  const [draftBoard, setDraftBoard] = useState<number[] | null>(null);
+  useEffect(() => setDraftBoard(randomBoard()), []);
   const { writeContractAsync } = useWriteContract();
 
   const token = (arena?.token ?? "0x0000000000000000000000000000000000000000") as `0x${string}`;
