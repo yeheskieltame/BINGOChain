@@ -69,6 +69,20 @@ export function ProfileEditor() {
     };
   }, [address]);
 
+  async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // let the same file be re-picked later
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return setMsg("Please choose an image file");
+    if (file.size > 8 * 1024 * 1024) return setMsg("Image too large (max 8MB)");
+    try {
+      setAvatarUrl(await fileToAvatarDataUrl(file));
+      setMsg(null);
+    } catch {
+      setMsg("Could not process that image");
+    }
+  }
+
   async function save() {
     if (!address) return;
     setSaving(true);
