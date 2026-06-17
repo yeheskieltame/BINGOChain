@@ -155,9 +155,11 @@ BINGOChain is built around what Celo does best. Sub-cent fees make a game with 3
 - [x] Reclaim (`cancelArena`) + admin (fee/treasury/pause/rescue) + security review (Slither, 0 vuln)
 - [x] **Live on Celo Mainnet** (verified) — proxy [`0x8bE7c07C…32f1`](https://celoscan.io/address/0x8bE7c07CCF9FF515d82D4c36aB4EB937941432f1#code), owner = Safe multisig
 - [x] Foundry unit + fuzz + invariant suite (86 tests; 16k-call money-conservation invariants)
+- [x] Web app live: lobby, create/join, live play, claim, reveal, settle, withdraw
+- [x] Profiles (name, bio, photo) · stats · achievements · $LANCE buy/redeem · referrals
+- [x] Cup: multiple concurrent competitions, each with its own window and leaderboard
 - [ ] `estimateGasReserve(numPlayers)` view + worst-case lock from gas report
 - [ ] Gasless relayer (reserve-reimbursed) — Phase 2
-- [ ] MiniPay frontend (create arena, join, play, reveal)
 
 ## License
 
