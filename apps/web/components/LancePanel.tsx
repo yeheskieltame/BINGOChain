@@ -161,7 +161,7 @@ export function LancePanel() {
         {busy ? "Working…" : isConnected ? (mode === "buy" ? "Buy $LANCE" : "Redeem to CELO") : "Connect a wallet"}
       </button>
 
-      {err ? <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{err}</p> : null}
+      {err ? <p className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{err}</p> : null}
     </div>
   );
 }
