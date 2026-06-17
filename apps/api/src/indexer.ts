@@ -1,4 +1,4 @@
-import { createPublicClient, http, parseAbiItem } from "viem";
+import { createPublicClient, decodeFunctionData, http, parseAbiItem } from "viem";
 import { celo } from "viem/chains";
 import type { Pool } from "pg";
 
@@ -21,7 +21,11 @@ const EVENTS = [
   parseAbiItem("event ArenaSettled(uint256 indexed arenaId, uint256 prizePool, uint256 fee, uint8 winnerCount)"),
   parseAbiItem("event WinnerPaid(uint256 indexed arenaId, address indexed winner, uint256 amount)"),
   parseAbiItem("event ArenaCancelled(uint256 indexed arenaId, uint8 refunded)"),
+  parseAbiItem("event BoardRevealed(uint256 indexed arenaId, address indexed player)"),
 ];
+
+const REVEAL_FN = parseAbiItem("function revealBoard(uint256 arenaId, uint8[25] board, bytes32 salt)");
+const REVEALED_EVENT = parseAbiItem("event BoardRevealed(uint256 indexed arenaId, address indexed player)");
 
 const client = createPublicClient({ chain: celo, transport: http(RPC) });
 
@@ -61,6 +65,21 @@ export async function startIndexer(pool: Pool, log: Logger) {
     ]);
     return START_BLOCK - 1n;
   }
+  // Decode a player's revealed board from their revealBoard tx and store it.
+  async function storeBoard(arenaId: string, player: string, txHash: `0x${string}`) {
+    try {
+      const tx = await client.getTransaction({ hash: txHash });
+      const { args } = decodeFunctionData({ abi: [REVEAL_FN], data: tx.input });
+      const board = (args[1] as readonly (number | bigint)[]).map(Number);
+      await pool.query(
+        "insert into revealed_boards(arena_id, player_address, board) values($1,$2,$3) on conflict (arena_id, player_address) do update set board=excluded.board",
+        [arenaId, player.toLowerCase(), board],
+      );
+    } catch (e) {
+      log.error(e, `indexer: storeBoard failed arena ${arenaId} ${player}`);
+    }
+  }
+
   const setCursor = (bn: bigint) =>
     pool.query("update indexer_state set last_block=$2, updated_at=now() where id=$1", [CURSOR_ID, bn.toString()]);
 
@@ -102,6 +121,8 @@ export async function startIndexer(pool: Pool, log: Logger) {
       } else if (name === "ArenaCancelled") {
         await pool.query("update matches set settled_at=$2, winner_count=0 where arena_id=$1", [String(a.arenaId), ts]);
         await pool.query("update player_matches set outcome='cancelled' where arena_id=$1 and outcome is null", [String(a.arenaId)]);
+      } else if (name === "BoardRevealed") {
+        await storeBoard(String(a.arenaId), String(a.player), lg.transactionHash!);
       }
     }
     return logs.length;
@@ -147,10 +168,35 @@ export async function startIndexer(pool: Pool, log: Logger) {
     }
   }
 
+  // One-time historical scan of revealed boards (only if none stored yet).
+  async function backfillBoards() {
+    const c = await pool.query("select count(*)::int as n from revealed_boards");
+    if (c.rows[0].n > 0) return;
+    const head = await client.getBlockNumber();
+    let from = START_BLOCK;
+    let n = 0;
+    while (from <= head) {
+      const to = from + CHUNK - 1n > head ? head : from + CHUNK - 1n;
+      try {
+        const logs = await client.getLogs({ address: PROXY, event: REVEALED_EVENT, fromBlock: from, toBlock: to });
+        for (const lg of logs) {
+          const a = (lg as { args: { arenaId: bigint; player: string } }).args;
+          await storeBoard(String(a.arenaId), String(a.player), lg.transactionHash!);
+          n++;
+        }
+      } catch (e) {
+        log.error(e, `indexer: board backfill chunk ${from}-${to}`);
+      }
+      from = to + 1n;
+    }
+    log.info({ n }, "indexer: backfilled revealed boards");
+  }
+
   log.info({ start: START_BLOCK.toString() }, "indexer: starting backfill");
   // Recompute from whatever is already indexed so stats are correct on boot
   // even before this run processes any new events.
   await recomputeStats().catch((e) => log.error(e, "indexer: initial recompute failed"));
   await tick().catch((e) => log.error(e, "indexer backfill error"));
+  await backfillBoards().catch((e) => log.error(e, "indexer: board backfill error"));
   setInterval(() => void tick().catch((e) => log.error(e, "indexer tick error")), POLL_MS);
 }
