@@ -638,6 +638,55 @@ async function competition() {
   log(`competition done: ${out.totalGames} games, ${out.totalVolume} $LANCE volume, ${winners.length} winners paid → out/competition-${tag}.json`);
 }
 
+// ── seed-open: create joinable OPEN arenas and leave them (lobby liveness) ────
+// Creates `count` arenas with 3–4 seats but only SEED_FILL (default 1) players
+// committed, so each stays in the Open/created state for real players to join —
+// the lobby is never empty for a demo. Stake is in STAKE_TOKEN ($LANCE); pool
+// wallets already hold $LANCE, so only gas is topped up. The committed stake
+// stays locked until the arena fills + settles or is cancelled; state is
+// persisted per arena (boards + salts + pks) so it's recoverable either way.
+async function seedOpen(count) {
+  const fill = Math.max(1, Number(process.env.SEED_FILL || 1));
+  const tag = process.env.RUN_TAG || "seed";
+  mkdirSync(join(__dir, "out"), { recursive: true });
+  const pool = shuffle(loadPool());
+  const need = count * fill;
+  if (need > pool.length) throw new Error(`seed-open needs ${need} wallets, pool has ${pool.length}`);
+
+  // top up gas only — pool wallets already hold $LANCE for the stake
+  const using = pool.slice(0, need);
+  let nonce = await pub.getTransactionCount({ address: deployer.address });
+  const fh = [];
+  for (const p of using) {
+    const b = await pub.getBalance({ address: p.account.address });
+    if (b < GAS_FLOOR) fh.push(await wallet(deployer).sendTransaction({ to: p.account.address, value: GAS_FLOOR - b, gas: GAS.fund, nonce: nonce++, ...FEE }));
+  }
+  for (const h of fh) await pub.waitForTransactionReceipt({ hash: h, timeout: 180000 });
+  const sym = STAKE_TOKEN === CELO ? "CELO" : "$LANCE";
+  log(`seed-open: opening ${count} arenas (fill ${fill}, stake ${formatEther(STAKE)} ${sym}), topped ${fh.length} wallets gas`);
+
+  const opened = [];
+  for (let i = 0; i < count; i++) {
+    const seats = 3 + (randomBytes(1)[0] % 2); // 3 or 4 → a varied "1/3", "1/4" lobby
+    const f = Math.min(fill, seats - 1); // always leave ≥1 seat open
+    const players = using.slice(i * fill, i * fill + f).map((p) => ({ ...p, board: shuffledBoard(), salt: `0x${randomBytes(32).toString("hex")}` }));
+    try {
+      const creator = players[0];
+      const rc = await send(creator.account, { address: PROXY, abi: ABI, functionName: "createArena", args: [STAKE_TOKEN, seats, STAKE], gas: GAS.createArena }, `seed${i} create`);
+      let arenaId;
+      for (const lg of rc.logs) { try { const d = decodeEventLog({ abi: ABI, data: lg.data, topics: lg.topics }); if (d.eventName === "ArenaCreated") arenaId = d.args.arenaId; } catch {} }
+      for (const p of players) {
+        await send(p.account, { address: STAKE_TOKEN, abi: ERC20_ABI, functionName: "approve", args: [PROXY, STAKE], gas: GAS.approve }, `seed${i} approve`);
+        await send(p.account, { address: PROXY, abi: ABI, functionName: "commitBoard", args: [arenaId, commitmentOf(p.board, p.salt)], gas: GAS.commitBoard }, `seed${i} commit`);
+      }
+      writeFileSync(stateFile(tag, i), JSON.stringify({ idx: i, arenaId: arenaId?.toString(), seats, filled: f, open: true, players: players.map((p) => ({ address: p.account.address, pk: p.pk, board: p.board, salt: p.salt })) }, null, 2));
+      opened.push(arenaId?.toString());
+      log(`seed${i}: opened arena #${arenaId} (${f}/${seats} seats)`);
+    } catch (e) { log(`seed${i} failed: ${e.shortMessage || e.message}`); }
+  }
+  log(`seed-open done: ${opened.filter(Boolean).length}/${count} open arenas → #${opened.filter(Boolean).join(" #")}`);
+}
+
 const mode = process.argv[2] || "check";
 const arg = process.argv[3];
 const arg2 = process.argv[4];
@@ -652,4 +701,5 @@ else if (mode === "wave") wave(Number(arg || 5)).then(() => process.exit(0)).cat
 else if (mode === "resume") resume(arg).then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
 else if (mode === "settle-pending") settlePending().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
 else if (mode === "competition") competition().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
+else if (mode === "seed-open") seedOpen(Number(arg || 6)).then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
 else { console.error("usage: play-mainnet.mjs check|run|sweep <file>|pool-init <n>|pool-fund <floor> [count]|pool-status|pool-skim <keep>|wave <numArenas>|resume <tag>|settle-pending"); process.exit(1); }
