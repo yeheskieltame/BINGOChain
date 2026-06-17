@@ -168,31 +168,37 @@ export default function ArenaPage() {
         </div>
       )}
 
-      {/* Created: arrange your board, then join */}
+      {/* Created: build your board, then join */}
       {state === 0 && !joined && (
         <div className="glass space-y-4 rounded-2xl p-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-anton text-base uppercase text-cream">Build your board</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">Tap two cells to swap. Numbers are called 1-25 in turn, so place them to complete lines early.</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Drag numbers into the grid (or tap a number, then a cell). Numbers are called 1-25 in turn, so place them to complete lines early.
+              </p>
             </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setDraftBoard(randomBoard())}
-              disabled={busy}
-            >
-              Shuffle
-            </Button>
+            <div className="flex shrink-0 gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setDraft(randomBoard())} disabled={busy}>
+                Auto-fill
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setDraft(Array(25).fill(null))} disabled={busy}>
+                Clear
+              </Button>
+            </div>
           </div>
-          {draftBoard && <BoardBuilder board={draftBoard} onChange={setDraftBoard} disabled={busy} />}
+          <BoardBuilder value={draft} onChange={setDraft} disabled={busy} />
           <Button
-            onClick={() => draftBoard && run(() => join(draftBoard))}
-            disabled={busy || !address || !draftBoard}
+            onClick={() => boardComplete && run(() => join(draft as number[]))}
+            disabled={busy || !address || !boardComplete}
             size="lg"
             className="w-full"
           >
-            {busy ? "Joining…" : "Join with this board"}
+            {busy
+              ? "Joining…"
+              : boardComplete
+                ? "Join with this board"
+                : `Place all 25 numbers (${draft.filter((n) => n !== null).length}/25)`}
           </Button>
         </div>
       )}
