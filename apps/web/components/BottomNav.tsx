@@ -12,13 +12,14 @@ const TABS = [
   { href: "/profile", label: "Profile", icon: User },
 ];
 
-/// Mobile-first bottom navigation. Hidden on md+ where TopNav takes over.
+/// Mobile bottom navigation, cinematic style: a floating liquid-glass pill.
+/// Hidden on md+ (TopNav takes over) and on the landing route.
 export function BottomNav() {
   const path = usePathname() ?? "/";
-  if (path === "/") return null; // the cinematic landing has its own nav
+  if (path === "/") return null;
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.06] bg-background/80 backdrop-blur-xl md:hidden">
-      <div className="mx-auto flex max-w-md items-stretch justify-around px-2 pb-[env(safe-area-inset-bottom)] pt-2">
+    <nav className="fixed inset-x-4 bottom-4 z-50 rounded-[1.5rem] border border-white/10 bg-navy/80 shadow-lg shadow-black/40 backdrop-blur-xl md:hidden">
+      <div className="flex items-stretch justify-around px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
         {TABS.map(({ href, label, icon: Icon }) => {
           const active = href === "/" ? path === "/" : path.startsWith(href);
           return (
@@ -26,11 +27,11 @@ export function BottomNav() {
               key={href}
               href={href}
               className={cn(
-                "flex flex-1 flex-col items-center gap-1 rounded-lg py-1.5 text-[0.65rem] font-medium transition-colors",
-                active ? "text-gold-300" : "text-muted-foreground hover:text-foreground",
+                "flex flex-1 flex-col items-center gap-1 rounded-lg py-1.5 text-[0.6rem] font-anton uppercase tracking-wide transition-colors",
+                active ? "text-neon" : "text-cream/60 hover:text-cream",
               )}
             >
-              <Icon className={cn("size-5", active && "drop-shadow-[0_0_6px_hsl(var(--gold-400)/0.5)]")} />
+              <Icon className={cn("size-5", active && "drop-shadow-[0_0_6px_hsl(var(--primary)/0.6)]")} />
               {label}
             </Link>
           );
