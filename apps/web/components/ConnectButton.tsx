@@ -11,8 +11,9 @@ export function ConnectButton() {
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
-  const names = useProfiles(address ? [address] : []);
-  const name = address ? names[address.toLowerCase()] : undefined;
+  const profiles = useProfiles(address ? [address] : []);
+  const profile = address ? profiles[address.toLowerCase()] : undefined;
+  const name = profile?.name;
 
   if (isConnected && address) {
     return (
@@ -22,7 +23,7 @@ export function ConnectButton() {
         onClick={() => disconnect()}
         className={name ? "text-gold-300" : "font-mono text-gold-300"}
       >
-        <PlayerAvatar address={address} size={18} />
+        <PlayerAvatar address={address} imageUrl={profile?.avatarUrl} size={18} />
         {name ?? shortAddress(address)}
       </Button>
     );
