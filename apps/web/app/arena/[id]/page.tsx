@@ -78,14 +78,19 @@ export default function ArenaPage() {
 
   async function join(board: number[]) {
     if (!address || !arena) return;
-    const salt = randomSalt();
-    saveBoard(id.toString(), address, { board, salt });
+    // Reuse the board + salt already sealed for this arena if one exists, so a
+    // re-submit (double click, retry, or rejoining a stale view) can NEVER
+    // replace the salt that was committed on-chain. Overwriting it was the bug
+    // that made reveal fail later with CommitMismatch. Otherwise seal this board
+    // with a fresh salt and persist it before committing so it is never lost.
+    const sealed = loadBoard(id.toString(), address) ?? { board, salt: randomSalt() };
+    saveBoard(id.toString(), address, sealed);
     if (allowance < arena.stake) await approve();
     await writeContractAsync({
       abi: bingoAbi,
       address: BINGO_ADDRESS,
       functionName: "commitBoard",
-      args: [id, commitment(board, salt)],
+      args: [id, commitment(sealed.board, sealed.salt)],
       chainId: CHAIN_ID,
     });
   }
