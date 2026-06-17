@@ -7,6 +7,7 @@ import { formatEther } from "viem";
 import pg from "pg";
 import { startIndexer } from "./indexer.ts";
 import { registerProfileRoutes } from "./profiles.ts";
+import { registerReferralRoutes } from "./referrals.ts";
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
@@ -194,6 +195,7 @@ app.get<{ Params: { address: string } }>("/api/profile/:address", async (req, re
 });
 
 registerProfileRoutes(app, pool);
+registerReferralRoutes(app, pool);
 
 // Seed the Cup events: one ongoing (live) + one ended (past). Idempotent.
 async function seedCompetitions() {

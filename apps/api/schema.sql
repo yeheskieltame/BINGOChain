@@ -67,5 +67,15 @@ CREATE TABLE IF NOT EXISTS revealed_boards (
   PRIMARY KEY (arena_id, player_address)
 );
 
+-- Referrals: who invited whom. One inviter per invited wallet (referree is PK),
+-- never self. Social-only in v1 — drives invite counts + a referral leaderboard;
+-- no on-chain reward.
+CREATE TABLE IF NOT EXISTS referrals (
+  referree   text PRIMARY KEY,            -- the invited wallet (can be referred once)
+  referrer   text NOT NULL,               -- the inviter wallet
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS idx_player_matches_player ON player_matches (player_address);
 CREATE INDEX IF NOT EXISTS idx_player_stats_volume   ON player_stats (total_volume DESC);
+CREATE INDEX IF NOT EXISTS idx_referrals_referrer    ON referrals (referrer);
