@@ -141,9 +141,9 @@ export function LancePanel() {
           onChange={(e) => setAmount(e.target.value)}
           inputMode="decimal"
           placeholder="0.0"
-          className={`w-full rounded-xl border bg-neutral-950 px-4 py-3 ${over ? "border-red-500" : "border-neutral-700"}`}
+          className={`w-full rounded-xl border bg-card/60 px-4 py-3 text-cream placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 ${over ? "border-destructive" : "border-border"}`}
         />
-        {over ? <span className="text-xs text-red-400">Amount exceeds your balance.</span> : null}
+        {over ? <span className="text-xs text-destructive">Amount exceeds your balance.</span> : null}
       </label>
 
       <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2 text-xs text-neutral-400">
