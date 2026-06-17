@@ -14,7 +14,7 @@ export function TokenPicker({ value, onChange }: { value: TokenKey; onChange: (t
           onClick={() => onChange(k)}
           className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${
             value === k
-              ? "border-gold-400 bg-gold-400 text-neutral-950"
+              ? "border-neon bg-neon text-navy shadow-glow"
               : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
           }`}
         >
