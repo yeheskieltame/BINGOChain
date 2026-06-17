@@ -17,6 +17,7 @@ const TABS = [
 /// floating tab bar marooned at the bottom of a tall viewport.
 export function TopNav() {
   const path = usePathname() ?? "/";
+  if (path === "/") return null; // the cinematic landing has its own nav
   return (
     <header className="sticky top-0 z-40 hidden border-b border-white/[0.06] bg-background/70 backdrop-blur-xl md:block">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
