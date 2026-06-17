@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { BackButton } from "../../components/BackButton";
 import { PageHeader } from "../../components/PageHeader";
+import { CupEventCard } from "../../components/CupEventCard";
 import { Player } from "../../components/Player";
-import { Countdown } from "../../components/Countdown";
 import { Badge } from "../../components/ui/badge";
 import { cn } from "../../lib/utils";
 import {
@@ -53,7 +53,7 @@ export default function CupPage() {
   const sel = (comps ?? []).find((c) => c.id === selected) ?? null;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-5 px-5 py-10 md:px-6">
+    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-5 py-10 md:px-6">
       <BackButton />
       <PageHeader
         eyebrow="Tournament"
@@ -85,92 +85,67 @@ export default function CupPage() {
         ))}
       </div>
 
-      {inTab.length > 1 && (
-        <div className="flex flex-wrap gap-2">
-          {inTab.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setSelected(c.id)}
-              className={cn(
-                "glass rounded-full px-3 py-1 text-xs transition-colors",
-                selected === c.id ? "text-gold-300" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {c.title}
-            </button>
-          ))}
-        </div>
-      )}
-
       {!comps ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : !sel ? (
+      ) : inTab.length === 0 ? (
         <p className="text-sm text-muted-foreground">No {tab} events right now.</p>
       ) : (
-        <div className="grid gap-5 lg:grid-cols-3 lg:items-start">
-          <div className="glass space-y-2 rounded-xl p-5 lg:sticky lg:top-20 lg:col-span-1">
-            <div className="flex items-center justify-between">
-              <p className="font-display text-lg font-bold text-foreground">{sel.title}</p>
-              <Badge variant={sel.status === "live" ? "open" : "settled"} dot={sel.status === "live"}>
-                {sel.status}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{sel.status === "live" ? "Ends in" : "Ended"}</span>
-              {sel.status === "live" ? (
-                <Countdown to={sel.endsAt} />
-              ) : (
-                <span className="font-mono text-sm text-muted-foreground">
-                  {new Date(sel.endsAt).toLocaleDateString()}
-                </span>
-              )}
-            </div>
-            {sel.prizePerWinner && (
-              <p className="text-xs text-muted-foreground">
-                Top {sel.topN} win <span className="text-gold-300">{sel.prizePerWinner} {sel.token}</span> each
-              </p>
-            )}
+        <>
+          {/* All concurrent cups at once — each scopes a different window. */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {inTab.map((c) => (
+              <CupEventCard key={c.id} event={c} selected={selected === c.id} onSelect={() => setSelected(c.id)} />
+            ))}
           </div>
 
-          <div className="lg:col-span-2">
-            {!board ? (
-              <p className="text-sm text-muted-foreground">Loading leaderboard…</p>
-            ) : board.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No entries in this window yet.</p>
-            ) : (
-              <div className="glass overflow-hidden rounded-2xl">
-                <table className="w-full text-sm">
-                <thead className="text-left text-xs text-muted-foreground">
-                  <tr className="border-b border-border">
-                    <th className="px-4 py-3">#</th>
-                    <th className="px-4 py-3">Player</th>
-                    <th className="px-4 py-3 text-right">Games</th>
-                    <th className="px-4 py-3 text-right">Wins</th>
-                    <th className="px-4 py-3 text-right">Volume</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {board.map((r) => (
-                    <tr
-                      key={r.address}
-                      className={cn("border-b border-border/40", sel.topN && r.rank <= sel.topN && "bg-gold-400/[0.05]")}
-                    >
-                      <td className="px-4 py-2.5 font-mono">{r.rank <= 3 ? MEDAL[r.rank - 1] : r.rank}</td>
-                      <td className="px-4 py-2.5">
-                        <Player address={r.address} name={r.name ?? undefined} size="sm" />
-                      </td>
-                      <td className="px-4 py-2.5 text-right font-mono">{r.games}</td>
-                      <td className="px-4 py-2.5 text-right font-mono">{r.wins}</td>
-                      <td className="px-4 py-2.5 text-right font-mono font-semibold">{r.volume}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            )}
-          </div>
-        </div>
+          {sel && (
+            <section className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-anton text-xl uppercase text-cream">
+                  {sel.title} <span className="text-muted-foreground">· full standings</span>
+                </h2>
+                <Badge variant={sel.status === "live" ? "open" : "settled"} dot={sel.status === "live"}>
+                  {sel.status}
+                </Badge>
+              </div>
+              {!board ? (
+                <p className="text-sm text-muted-foreground">Loading leaderboard…</p>
+              ) : board.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No entries in this window yet.</p>
+              ) : (
+                <div className="glass overflow-hidden rounded-2xl">
+                  <table className="w-full text-sm">
+                    <thead className="text-left text-xs text-muted-foreground">
+                      <tr className="border-b border-border">
+                        <th className="px-4 py-3">#</th>
+                        <th className="px-4 py-3">Player</th>
+                        <th className="px-4 py-3 text-right">Games</th>
+                        <th className="px-4 py-3 text-right">Wins</th>
+                        <th className="px-4 py-3 text-right">Volume</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {board.map((r) => (
+                        <tr
+                          key={r.address}
+                          className={cn("border-b border-border/40", sel.topN && r.rank <= sel.topN && "bg-neon/[0.05]")}
+                        >
+                          <td className="px-4 py-2.5 font-mono">{r.rank <= 3 ? MEDAL[r.rank - 1] : r.rank}</td>
+                          <td className="px-4 py-2.5">
+                            <Player address={r.address} name={r.name ?? undefined} size="sm" />
+                          </td>
+                          <td className="px-4 py-2.5 text-right font-mono">{r.games}</td>
+                          <td className="px-4 py-2.5 text-right font-mono">{r.wins}</td>
+                          <td className="px-4 py-2.5 text-right font-mono font-semibold">{r.volume}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+        </>
       )}
 
       <p className="text-xs text-muted-foreground/70">

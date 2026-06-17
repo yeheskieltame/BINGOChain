@@ -15,12 +15,14 @@ const AVATAR_PX = { sm: 20, md: 28, lg: 40 } as const;
 export function Player({
   address,
   name,
+  imageUrl,
   subtitle,
   size = "md",
   className,
 }: {
   address: string;
   name?: string;
+  imageUrl?: string | null;
   subtitle?: string;
   size?: keyof typeof AVATAR_PX;
   className?: string;
@@ -28,7 +30,7 @@ export function Player({
   const label = name ?? shortAddress(address);
   return (
     <span className={cn("inline-flex min-w-0 items-center gap-2", className)}>
-      <PlayerAvatar address={address} size={AVATAR_PX[size]} />
+      <PlayerAvatar address={address} imageUrl={imageUrl} size={AVATAR_PX[size]} />
       <span className="min-w-0">
         <span className={cn("block truncate text-foreground", name ? "font-medium" : "font-mono text-sm")}>
           {label}

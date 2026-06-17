@@ -10,6 +10,12 @@ import { isAddress, verifyMessage } from "viem";
 const TTL_MS = 10 * 60 * 1000;
 const nonces = new Map<string, { nonce: string; exp: number }>();
 
+// Sweep expired nonces so the in-memory map cannot grow unbounded over time.
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of nonces) if (v.exp < now) nonces.delete(k);
+}, 60_000).unref?.();
+
 const messageFor = (address: string, nonce: string) =>
   `BINGOChain\n\nSign in to update your profile.\n\nAddress: ${address}\nNonce: ${nonce}`;
 
@@ -17,6 +23,21 @@ const clean = (s: unknown, max: number): string | null => {
   if (s == null) return null;
   const v = String(s).trim();
   return v ? v.slice(0, max) : null;
+};
+
+// Avatar is either a compact inline image (data:image/...;base64, capped ~64KB)
+// or an https image URL. Anything else is rejected and stored as null.
+const cleanAvatar = (s: unknown): string | null => {
+  if (s == null) return null;
+  const v = String(s).trim();
+  if (!v) return null;
+  if (v.startsWith("data:image/")) return v.length <= 64_000 ? v : null;
+  try {
+    const u = new URL(v);
+    return u.protocol === "https:" && v.length <= 512 ? v : null;
+  } catch {
+    return null;
+  }
 };
 
 export function registerProfileRoutes(app: FastifyInstance, pool: Pool) {
@@ -29,7 +50,8 @@ export function registerProfileRoutes(app: FastifyInstance, pool: Pool) {
       .slice(0, 100);
     if (!addrs.length) return [];
     const { rows } = await pool.query(
-      "select address, name, avatar_seed from players where address = any($1) and name is not null",
+      `select address, name, avatar_seed, avatar_url from players
+       where address = any($1) and (name is not null or avatar_url is not null)`,
       [addrs],
     );
     return rows;
@@ -45,12 +67,12 @@ export function registerProfileRoutes(app: FastifyInstance, pool: Pool) {
 
   app.put<{
     Params: { address: string };
-    Body: { name?: string; avatarSeed?: string; bio?: string; signature?: string };
+    Body: { name?: string; avatarSeed?: string; avatarUrl?: string; bio?: string; signature?: string };
   }>("/api/profile/:address", async (req, reply) => {
     const address = req.params.address.toLowerCase();
     if (!isAddress(address)) return reply.code(400).send({ error: "bad_address" });
 
-    const { name, avatarSeed, bio, signature } = req.body ?? {};
+    const { name, avatarSeed, avatarUrl, bio, signature } = req.body ?? {};
     if (!signature) return reply.code(400).send({ error: "signature_required" });
 
     const entry = nonces.get(address);
@@ -70,12 +92,13 @@ export function registerProfileRoutes(app: FastifyInstance, pool: Pool) {
     nonces.delete(address); // single-use
 
     const { rows } = await pool.query(
-      `insert into players(address, name, avatar_seed, bio, updated_at)
-       values($1,$2,$3,$4, now())
+      `insert into players(address, name, avatar_seed, avatar_url, bio, updated_at)
+       values($1,$2,$3,$4,$5, now())
        on conflict (address) do update set
-         name=excluded.name, avatar_seed=excluded.avatar_seed, bio=excluded.bio, updated_at=now()
-       returning address, name, avatar_seed, bio`,
-      [address, clean(name, 32), clean(avatarSeed, 64), clean(bio, 200)],
+         name=excluded.name, avatar_seed=excluded.avatar_seed,
+         avatar_url=excluded.avatar_url, bio=excluded.bio, updated_at=now()
+       returning address, name, avatar_seed, avatar_url, bio`,
+      [address, clean(name, 32), clean(avatarSeed, 64), cleanAvatar(avatarUrl), clean(bio, 200)],
     );
     return rows[0];
   });

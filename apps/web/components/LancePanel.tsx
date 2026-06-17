@@ -84,35 +84,35 @@ export function LancePanel() {
   const rate = fmt((WAD * WAD) / nav, 18, 0);
 
   return (
-    <div className="space-y-4 rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
+    <div className="glass space-y-4 rounded-2xl p-5">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-lg font-black text-gold-400">$LANCE</h2>
-        <span className="text-xs text-neutral-500">~{rate} LANCE / CELO</span>
+        <h2 className="font-anton text-lg uppercase tracking-tight text-neon">$LANCE</h2>
+        <span className="font-mono text-xs text-muted-foreground">~{rate} LANCE / CELO</span>
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-center text-xs">
-        <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2">
-          <div className="text-neutral-500">Your $LANCE</div>
-          <div className="mt-0.5 font-mono text-sm font-semibold">{fmt(lance)}</div>
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+          <div className="text-muted-foreground">Your $LANCE</div>
+          <div className="mt-0.5 font-mono text-sm font-semibold text-cream">{fmt(lance)}</div>
         </div>
-        <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2">
-          <div className="text-neutral-500">Your CELO</div>
-          <div className="mt-0.5 font-mono text-sm font-semibold">{fmt(celo)}</div>
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+          <div className="text-muted-foreground">Your CELO</div>
+          <div className="mt-0.5 font-mono text-sm font-semibold text-cream">{fmt(celo)}</div>
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-center text-[0.7rem]">
-        <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-2 py-1.5">
-          <div className="text-neutral-500">Supply</div>
-          <div className="mt-0.5 font-mono font-semibold">{fmt(supply, 18, 0)}</div>
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-2 py-1.5">
+          <div className="text-muted-foreground">Supply</div>
+          <div className="mt-0.5 font-mono font-semibold text-cream">{fmt(supply, 18, 0)}</div>
         </div>
-        <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-2 py-1.5">
-          <div className="text-neutral-500">Pool</div>
-          <div className="mt-0.5 font-mono font-semibold">{fmt(pool, 18, 2)} CELO</div>
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-2 py-1.5">
+          <div className="text-muted-foreground">Pool</div>
+          <div className="mt-0.5 font-mono font-semibold text-cream">{fmt(pool, 18, 2)} CELO</div>
         </div>
-        <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-2 py-1.5">
-          <div className="text-neutral-500">Backed</div>
-          <div className="mt-0.5 font-mono font-semibold text-emerald-400">100%</div>
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-2 py-1.5">
+          <div className="text-muted-foreground">Backed</div>
+          <div className="mt-0.5 font-mono font-semibold text-neon">100%</div>
         </div>
       </div>
 
@@ -122,7 +122,7 @@ export function LancePanel() {
             key={m}
             type="button"
             onClick={() => { setMode(m); setAmount(""); setErr(null); }}
-            className={`rounded-xl border px-3 py-2.5 text-sm font-semibold capitalize ${mode === m ? "border-gold-400 bg-gold-400/10 text-gold-400" : "border-neutral-700 text-neutral-300"}`}
+            className={`rounded-xl border px-3 py-2.5 text-sm font-semibold capitalize transition-colors ${mode === m ? "border-neon/40 bg-neon/15 text-neon" : "border-white/10 text-muted-foreground hover:bg-white/5 hover:text-cream"}`}
           >
             {m}
           </button>
@@ -131,8 +131,8 @@ export function LancePanel() {
 
       <label className="block space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-neutral-400">{mode === "buy" ? "Spend CELO" : "Redeem $LANCE"}</span>
-          <button type="button" onClick={() => setAmount(formatUnits(balance, mode === "buy" ? 18 : LANCE_DECIMALS))} className="font-mono text-xs text-neutral-400 underline-offset-2 hover:underline">
+          <span className="text-muted-foreground">{mode === "buy" ? "Spend CELO" : "Redeem $LANCE"}</span>
+          <button type="button" onClick={() => setAmount(formatUnits(balance, mode === "buy" ? 18 : LANCE_DECIMALS))} className="font-mono text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-neon hover:underline">
             Max: {fmt(balance, mode === "buy" ? 18 : LANCE_DECIMALS, 4)}
           </button>
         </div>
@@ -141,27 +141,27 @@ export function LancePanel() {
           onChange={(e) => setAmount(e.target.value)}
           inputMode="decimal"
           placeholder="0.0"
-          className={`w-full rounded-xl border bg-neutral-950 px-4 py-3 ${over ? "border-red-500" : "border-neutral-700"}`}
+          className={`w-full rounded-xl border bg-card/60 px-4 py-3 text-cream placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 ${over ? "border-destructive" : "border-border"}`}
         />
-        {over ? <span className="text-xs text-red-400">Amount exceeds your balance.</span> : null}
+        {over ? <span className="text-xs text-destructive">Amount exceeds your balance.</span> : null}
       </label>
 
-      <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2 text-xs text-neutral-400">
+      <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-xs text-muted-foreground">
         {mode === "buy"
-          ? <>You receive ≈ <span className="font-mono text-neutral-200">{fmt(preview)}</span> $LANCE</>
-          : <>You receive ≈ <span className="font-mono text-neutral-200">{fmt(preview)}</span> CELO <span className="opacity-70">(after {(feeBps / 100).toFixed(2)}% fee)</span></>}
+          ? <>You receive ≈ <span className="font-mono text-cream">{fmt(preview)}</span> $LANCE</>
+          : <>You receive ≈ <span className="font-mono text-cream">{fmt(preview)}</span> CELO <span className="opacity-70">(after {(feeBps / 100).toFixed(2)}% fee)</span></>}
       </div>
 
       <button
         type="button"
         onClick={submit}
         disabled={!canSubmit}
-        className="w-full rounded-xl bg-gold-400 px-4 py-3 font-semibold text-neutral-950 disabled:opacity-50"
+        className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-primary-foreground shadow-glow transition-colors hover:bg-gold-500 disabled:opacity-50 disabled:shadow-none"
       >
         {busy ? "Working…" : isConnected ? (mode === "buy" ? "Buy $LANCE" : "Redeem to CELO") : "Connect a wallet"}
       </button>
 
-      {err ? <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{err}</p> : null}
+      {err ? <p className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{err}</p> : null}
     </div>
   );
 }

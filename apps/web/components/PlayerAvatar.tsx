@@ -6,16 +6,33 @@ import { cn } from "../lib/utils";
 
 export function PlayerAvatar({
   address,
+  imageUrl,
   size = 28,
   className,
 }: {
   address: string;
+  imageUrl?: string | null;
   size?: number;
   className?: string;
 }) {
   const ic = useMemo(() => identicon(address), [address]);
   const uid = useId().replace(/:/g, "");
   const clip = `ic-${uid}`;
+
+  // A set avatar takes priority; otherwise fall back to the deterministic identicon.
+  if (imageUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={imageUrl}
+        alt={`Avatar for ${address}`}
+        width={size}
+        height={size}
+        style={{ width: size, height: size }}
+        className={cn("shrink-0 rounded-full object-cover ring-1 ring-white/10", className)}
+      />
+    );
+  }
 
   return (
     <svg

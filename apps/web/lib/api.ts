@@ -2,7 +2,13 @@
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://bingochain-api-production.up.railway.app";
 
-export type Profile = { address: string; name: string | null; avatar_seed: string | null; bio: string | null };
+export type Profile = {
+  address: string;
+  name: string | null;
+  avatar_seed: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+};
 export type PlayerStats = { games: number; wins: number; volume: string; earnings: string };
 export type PlayerMatch = {
   arenaId: string;
@@ -114,7 +120,7 @@ export const getNonce = (address: string) =>
 
 export async function putProfile(
   address: string,
-  body: { name?: string; avatarSeed?: string; bio?: string; signature: string },
+  body: { name?: string; avatarSeed?: string; avatarUrl?: string; bio?: string; signature: string },
 ): Promise<Profile> {
   const res = await fetch(`${API_URL}/api/profile/${address}`, {
     method: "PUT",

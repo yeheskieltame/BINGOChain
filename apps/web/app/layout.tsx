@@ -5,6 +5,7 @@ import { Providers } from "../components/Providers";
 import { BottomNav } from "../components/BottomNav";
 import { TopNav } from "../components/TopNav";
 import { SpaceBackdrop } from "../components/SpaceBackdrop";
+import { ClaudelancePromo } from "../components/ClaudelancePromo";
 import { ReferralCapture } from "../components/ReferralCapture";
 import "./globals.css";
 
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <TopNav />
           <div className="pb-24 md:pb-0">{children}</div>
           <BottomNav />
+          <ClaudelancePromo />
         </Providers>
       </body>
     </html>
