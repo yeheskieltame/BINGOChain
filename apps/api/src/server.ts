@@ -97,6 +97,14 @@ app.get<{ Params: { address: string } }>("/api/player/:address", async (req) => 
   };
 });
 
+// Recent arena ids (newest first) from the index — the lobby multicalls
+// getArena for live state, avoiding a browser eth_getLogs (forno blocks it).
+app.get("/api/arenas", async (req) => {
+  const limit = Math.min(Number((req.query as { limit?: string }).limit ?? 60), 200);
+  const { rows } = await pool.query("select arena_id from matches order by arena_id desc limit $1", [limit]);
+  return rows.map((r) => String(r.arena_id));
+});
+
 // Full arena detail — match + per-player outcome/prize + revealed boards.
 app.get<{ Params: { id: string } }>("/api/arena/:id", async (req, reply) => {
   const id = req.params.id;
