@@ -18,6 +18,7 @@ import { useProfiles } from "../../../hooks/useProfiles";
 import { Button } from "../../../components/ui/button";
 import { Badge, type BadgeProps } from "../../../components/ui/badge";
 import { BackButton } from "../../../components/BackButton";
+import { PageHeader } from "../../../components/PageHeader";
 import { ArenaResult } from "../../../components/ArenaResult";
 import { ShareButton } from "../../../components/ShareButton";
 
@@ -105,18 +106,23 @@ export default function ArenaPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-5 px-5 py-10 md:px-6">
       <BackButton />
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-black text-foreground md:text-3xl">
-          Arena <span className="font-mono text-gold-300">#{id.toString()}</span>
-        </h1>
-        <div className="flex items-center gap-2">
-          <ShareButton title={`BINGOChain · Arena #${id.toString()}`} />
-          {/* Connect lives in the TopNav on desktop */}
-          <div className="md:hidden">
-            <ConnectButton />
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Live arena"
+        title={
+          <>
+            Arena <span className="font-mono text-neon">#{id.toString()}</span>
+          </>
+        }
+        actions={
+          <>
+            <ShareButton title={`BINGOChain · Arena #${id.toString()}`} />
+            {/* Connect lives in the TopNav on desktop */}
+            <div className="md:hidden">
+              <ConnectButton />
+            </div>
+          </>
+        }
+      />
 
       <div className="glass flex items-center justify-between rounded-xl p-3.5 text-sm">
         <Badge variant={STATE_BADGE[state] ?? "open"} dot={state === 1 || state === 2}>
