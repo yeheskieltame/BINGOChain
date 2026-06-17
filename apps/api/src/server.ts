@@ -97,6 +97,53 @@ app.get<{ Params: { address: string } }>("/api/player/:address", async (req) => 
   };
 });
 
+// Cup competitions with computed status (upcoming | live | past).
+app.get("/api/competitions", async () => {
+  const { rows } = await pool.query(
+    "select id, title, starts_at, ends_at, prize_per_winner, top_n, token from competitions order by ends_at desc",
+  );
+  const now = Date.now();
+  return rows.map((r) => {
+    const s = new Date(r.starts_at).getTime();
+    const e = new Date(r.ends_at).getTime();
+    return {
+      id: r.id,
+      title: r.title,
+      startsAt: r.starts_at,
+      endsAt: r.ends_at,
+      prizePerWinner: r.prize_per_winner != null ? String(r.prize_per_winner) : null,
+      topN: r.top_n,
+      token: r.token,
+      status: now < s ? "upcoming" : now > e ? "past" : "live",
+    };
+  });
+});
+
+// Leaderboard scoped to a competition's [starts_at, ends_at] window.
+app.get<{ Params: { id: string } }>("/api/competitions/:id/leaderboard", async (req, reply) => {
+  const c = await pool.query("select starts_at, ends_at from competitions where id=$1", [req.params.id]);
+  if (!c.rows[0]) return reply.code(404).send({ error: "not_found" });
+  const { rows } = await pool.query(
+    `select pm.player_address, p.name, count(*)::int as games,
+            (count(*) filter (where pm.outcome='win'))::int as wins, coalesce(sum(m.stake),0) as volume
+     from player_matches pm
+     join matches m on m.arena_id = pm.arena_id
+     left join players p on p.address = pm.player_address
+     where m.created_at >= $1 and m.created_at <= $2
+     group by pm.player_address, p.name
+     order by volume desc, games desc limit 50`,
+    [c.rows[0].starts_at, c.rows[0].ends_at],
+  );
+  return rows.map((r, i) => ({
+    rank: i + 1,
+    address: r.player_address,
+    name: r.name,
+    games: Number(r.games),
+    wins: Number(r.wins),
+    volume: fmt(r.volume),
+  }));
+});
+
 // Recent arena ids (newest first) from the index — the lobby multicalls
 // getArena for live state, avoiding a browser eth_getLogs (forno blocks it).
 app.get("/api/arenas", async (req) => {
@@ -148,6 +195,17 @@ app.get<{ Params: { address: string } }>("/api/profile/:address", async (req, re
 
 registerProfileRoutes(app, pool);
 
+// Seed the Cup events: one ongoing (live) + one ended (past). Idempotent.
+async function seedCompetitions() {
+  if (!connectionString) return;
+  await pool.query(`
+    insert into competitions(id, title, starts_at, ends_at, prize_per_winner, top_n, token) values
+      ('weekly-1', 'Weekly Volume Cup', now() - interval '2 days', now() + interval '5 days', 20, 10, '$LANCE'),
+      ('cup-1', 'Volume Cup #1', timestamptz '2026-06-16 00:00:00+00', timestamptz '2026-06-16 12:00:00+00', 20, 10, '$LANCE')
+    on conflict (id) do nothing
+  `);
+}
+
 async function migrate() {
   if (!connectionString) {
     app.log.warn("DATABASE_URL not set — skipping migration");
@@ -161,6 +219,7 @@ async function migrate() {
 const port = Number(process.env.PORT || 8080);
 try {
   await migrate();
+  await seedCompetitions().catch((e) => app.log.error(e, "seed competitions failed"));
   await app.listen({ port, host: "0.0.0.0" });
   app.log.info(`bingochain-api listening on :${port}`);
   // Fire-and-forget: backfill + poll the chain in the background.
