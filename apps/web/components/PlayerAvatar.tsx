@@ -6,10 +6,12 @@ import { cn } from "../lib/utils";
 
 export function PlayerAvatar({
   address,
+  imageUrl,
   size = 28,
   className,
 }: {
   address: string;
+  imageUrl?: string | null;
   size?: number;
   className?: string;
 }) {
