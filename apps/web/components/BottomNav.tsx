@@ -15,6 +15,7 @@ const TABS = [
 /// Mobile-first bottom navigation. Hidden on md+ where TopNav takes over.
 export function BottomNav() {
   const path = usePathname() ?? "/";
+  if (path === "/") return null; // the cinematic landing has its own nav
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.06] bg-background/80 backdrop-blur-xl md:hidden">
       <div className="mx-auto flex max-w-md items-stretch justify-around px-2 pb-[env(safe-area-inset-bottom)] pt-2">
