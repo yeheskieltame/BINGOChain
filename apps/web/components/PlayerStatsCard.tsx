@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { getPlayer, type PlayerData } from "../lib/api";
+import { AchievementBadges } from "./AchievementBadges";
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -32,6 +33,8 @@ export function PlayerStatsCard() {
         <Stat label="Volume" value={s ? s.volume : "0"} />
         <Stat label="Won" value={s ? s.earnings : "0"} />
       </div>
+
+      <AchievementBadges stats={s ?? null} />
 
       {d?.recent?.length ? (
         <div className="glass rounded-xl p-4">
