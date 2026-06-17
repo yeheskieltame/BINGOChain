@@ -97,6 +97,28 @@ app.get<{ Params: { address: string } }>("/api/player/:address", async (req) => 
   };
 });
 
+// Cup competitions with computed status (upcoming | live | past).
+app.get("/api/competitions", async () => {
+  const { rows } = await pool.query(
+    "select id, title, starts_at, ends_at, prize_per_winner, top_n, token from competitions order by ends_at desc",
+  );
+  const now = Date.now();
+  return rows.map((r) => {
+    const s = new Date(r.starts_at).getTime();
+    const e = new Date(r.ends_at).getTime();
+    return {
+      id: r.id,
+      title: r.title,
+      startsAt: r.starts_at,
+      endsAt: r.ends_at,
+      prizePerWinner: r.prize_per_winner != null ? String(r.prize_per_winner) : null,
+      topN: r.top_n,
+      token: r.token,
+      status: now < s ? "upcoming" : now > e ? "past" : "live",
+    };
+  });
+});
+
 // Recent arena ids (newest first) from the index — the lobby multicalls
 // getArena for live state, avoiding a browser eth_getLogs (forno blocks it).
 app.get("/api/arenas", async (req) => {
