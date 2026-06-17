@@ -131,8 +131,8 @@ export function LancePanel() {
 
       <label className="block space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-neutral-400">{mode === "buy" ? "Spend CELO" : "Redeem $LANCE"}</span>
-          <button type="button" onClick={() => setAmount(formatUnits(balance, mode === "buy" ? 18 : LANCE_DECIMALS))} className="font-mono text-xs text-neutral-400 underline-offset-2 hover:underline">
+          <span className="text-muted-foreground">{mode === "buy" ? "Spend CELO" : "Redeem $LANCE"}</span>
+          <button type="button" onClick={() => setAmount(formatUnits(balance, mode === "buy" ? 18 : LANCE_DECIMALS))} className="font-mono text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-neon hover:underline">
             Max: {fmt(balance, mode === "buy" ? 18 : LANCE_DECIMALS, 4)}
           </button>
         </div>
