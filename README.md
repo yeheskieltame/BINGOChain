@@ -1,6 +1,12 @@
-# BINGOChain
+<p align="center">
+  <img src="apps/web/public/logo.png" alt="BINGOChain logo" width="128" height="128" />
+</p>
+
+<h1 align="center">BINGOChain</h1>
 
 **Strategic onchain bingo on Celo. Boards are sealed before play, every called number is recorded onchain, and the full game is revealed at the end so cheating is mathematically impossible.**
+
+Live app: [bingochain.vercel.app](https://bingochain.vercel.app) · staked in [$LANCE](https://claudelance.xyz)
 
 > A PvP arena where players design their own 5×5 board, lock it in a smart contract, and race to BINGO. No trusted server, no hidden randomness, no way to fake a win.
 
