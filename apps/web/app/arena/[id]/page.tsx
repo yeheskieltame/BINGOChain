@@ -12,6 +12,7 @@ import { useToken } from "../../../hooks/useToken";
 import { tokenInfo } from "../../../components/ArenaCard";
 import { BoardGrid } from "../../../components/BoardGrid";
 import { BoardBuilder } from "../../../components/BoardBuilder";
+import { BingoMeter } from "../../../components/BingoMeter";
 import { NumberPad } from "../../../components/NumberPad";
 import { ConnectButton } from "../../../components/ConnectButton";
 import { PlayerAvatar } from "../../../components/PlayerAvatar";
@@ -209,23 +210,32 @@ export default function ArenaPage() {
         <>
           <div className="grid gap-5 sm:grid-cols-2">
             {mine && (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
                   Your board · <span className="text-gold-300">{lines}/5</span> lines
                 </p>
                 <BoardGrid board={mine.board} called={calledSet} lastCalled={lastCalled} />
+                <BingoMeter lines={lines} />
               </div>
             )}
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">{myTurn ? "Your turn — call a number" : "Called numbers"}</p>
+              <p className="text-sm text-muted-foreground">{myTurn ? "Your turn to call a number" : "Called numbers"}</p>
               <NumberPad called={calledSet} disabled={busy || !myTurn} onCall={(n) => run(() => write("callNumber", [id, n]))} lastCalled={lastCalled} />
             </div>
           </div>
-          {joined && (
-            <Button variant="outline" onClick={() => run(() => write("claimBingo", [id]))} disabled={busy} size="lg" className="border-gold-400/50 text-gold-300 hover:bg-gold-400/10">
-              Claim BINGO
-            </Button>
-          )}
+          {joined &&
+            (lines >= 5 ? (
+              <Button
+                onClick={() => run(() => write("claimBingo", [id]))}
+                disabled={busy}
+                size="lg"
+                className="w-full animate-pulse bg-primary text-primary-foreground shadow-glow hover:bg-gold-500"
+              >
+                {busy ? "Claiming…" : "Claim BINGO!"}
+              </Button>
+            ) : (
+              <p className="text-center text-xs text-muted-foreground">Complete 5 lines (B-I-N-G-O) to claim.</p>
+            ))}
         </>
       )}
 
