@@ -4,7 +4,7 @@ const ABOUT_VIDEO =
   "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260331_151551_992053d1-3d3e-4b8c-abac-45f22158f411.mp4";
 
 const BLURB =
-  "A 5×5 board you seal before the game. Numbers are called in turn, onchain — and the winner is proven by replaying every move. Strategy over luck.";
+  "A 5×5 board you seal before the game. Numbers are called in turn, onchain, and the winner is proven by replaying every move. Strategy over luck.";
 
 /// Section 2 — full-bleed video intro: oversized Anton greeting with a cursive
 /// Condiment accent, a mono blurb, and a row of faded decorative echoes.
