@@ -6,46 +6,47 @@
   :root {
     color-scheme: dark;
 
-    /* Base surfaces — warm near-black, layered */
-    --background: 30 11% 4%; /* #0A0908 */
-    --foreground: 40 40% 93%; /* #F5F1E8 warm off-white */
-    --card: 36 16% 7%;
-    --card-foreground: 40 40% 93%;
-    --popover: 34 16% 9%;
-    --popover-foreground: 40 40% 93%;
+    /* Cinematic space palette (matches the landing): deep navy + cream + neon */
+    --background: 226 96% 8%; /* #010828 navy */
+    --foreground: 220 100% 96%; /* #EFF4FF cream */
+    --card: 226 58% 12%;
+    --card-foreground: 220 100% 96%;
+    --popover: 226 56% 13%;
+    --popover-foreground: 220 100% 96%;
 
-    /* Minted gold accent (warmer/premium vs the old lemon yellow) */
-    --primary: 42 79% 58%; /* #E8B341 */
-    --primary-foreground: 38 70% 8%;
+    /* Neon green accent (replaces the old gold) */
+    --primary: 94 100% 50%; /* #6FFF00 neon */
+    --primary-foreground: 226 96% 8%; /* navy text on neon */
 
-    --secondary: 36 14% 11%;
-    --secondary-foreground: 40 30% 90%;
-    --muted: 34 14% 12%;
-    --muted-foreground: 36 11% 62%; /* #A8A096 */
-    --accent: 34 18% 14%;
-    --accent-foreground: 40 40% 93%;
-    --destructive: 6 55% 60%;
-    --destructive-foreground: 40 40% 96%;
+    --secondary: 226 45% 16%;
+    --secondary-foreground: 220 60% 92%;
+    --muted: 226 40% 18%;
+    --muted-foreground: 220 26% 74%;
+    --accent: 226 45% 20%;
+    --accent-foreground: 220 100% 96%;
+    --destructive: 6 70% 60%;
+    --destructive-foreground: 220 100% 96%;
 
-    --border: 36 18% 14%;
-    --border-strong: 36 16% 20%;
-    --input: 36 16% 16%;
-    --ring: 42 79% 58%;
+    --border: 226 40% 22%;
+    --border-strong: 226 35% 32%;
+    --input: 226 42% 18%;
+    --ring: 94 100% 50%;
     --radius: 0.85rem;
 
-    /* Gold scale */
-    --gold-300: 42 85% 75%;
-    --gold-400: 42 79% 58%;
-    --gold-500: 38 72% 46%;
-    --gold-600: 34 70% 34%;
+    /* Accent scale — re-pointed gold → neon green so every existing gold-* class
+       flips to the new accent without touching component markup. */
+    --gold-300: 94 100% 74%;
+    --gold-400: 94 100% 50%;
+    --gold-500: 96 92% 42%;
+    --gold-600: 98 82% 32%;
 
-    /* Game-state jewel tones (desaturated to sit on dark) */
-    --state-open: 152 46% 50%;
-    --state-full: 40 80% 56%;
-    --state-playing: 200 68% 60%;
-    --state-revealing: 264 52% 70%;
-    --state-settled: 36 8% 58%;
-    --state-cancelled: 6 55% 64%;
+    /* Game-state tones, tuned to sit on navy */
+    --state-open: 94 90% 52%;
+    --state-full: 40 90% 58%;
+    --state-playing: 200 82% 64%;
+    --state-revealing: 264 62% 74%;
+    --state-settled: 220 16% 64%;
+    --state-cancelled: 6 66% 64%;
   }
 }
 
