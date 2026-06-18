@@ -3,6 +3,7 @@
 import { erc20Abi, maxUint256 } from "viem";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { BINGO_ADDRESS, CHAIN_ID } from "../lib/bingo";
+import { miniPayTx } from "../lib/minipay";
 
 /// Reads the connected wallet's balance + allowance for `token` and exposes an
 /// approve() that lets the BingoChain contract pull stakes.
@@ -35,7 +36,9 @@ export function useToken(token: `0x${string}`) {
       address: token,
       functionName: "approve",
       args: [BINGO_ADDRESS, maxUint256],
-    });
+      chainId: CHAIN_ID,
+      ...miniPayTx(),
+    } as Parameters<typeof writeContractAsync>[0]);
   }
 
   return {
