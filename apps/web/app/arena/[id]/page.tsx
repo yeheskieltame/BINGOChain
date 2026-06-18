@@ -2,9 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { erc20Abi, maxUint256, parseEther } from "viem";
+import { useAccount, useReadContract, useSendTransaction, useWriteContract } from "wagmi";
 import { bingoAbi, BINGO_ADDRESS, CHAIN_ID } from "../../../lib/bingo";
 import { commitment, randomBoard, randomSalt, completedLines } from "../../../lib/board";
+import { gameWrite, gameSweep } from "../../../lib/gameWallet";
+import { useGameWallet } from "../../../hooks/useGameWallet";
 import { formatAmount, shortAddress } from "../../../lib/format";
 import { cn } from "../../../lib/utils";
 import { useArena } from "../../../hooks/useArena";
@@ -46,22 +49,33 @@ export default function ArenaPage() {
   const [draft, setDraft] = useState<(number | null)[]>(() => Array(25).fill(null));
   const boardComplete = draft.every((n) => n !== null);
   const { writeContractAsync } = useWriteContract();
+  const { sendTransactionAsync } = useSendTransaction();
 
   const token = (arena?.token ?? "0x0000000000000000000000000000000000000000") as `0x${string}`;
   const t = tokenInfo(token);
   const { allowance, approve } = useToken(token);
 
+  // Smooth play: an in-browser game wallet plays auto-signed (no popup per turn).
+  // It's the effective player once it has joined; otherwise the connected wallet
+  // is. `me` is whichever address is the player; `smooth` means the game wallet.
+  const gw = useGameWallet(token);
+  const gameAddr = gw.gameAddr;
+  const smoothJoined = !!gameAddr && players.some((p) => p.toLowerCase() === gameAddr.toLowerCase());
+  const mainJoined = !!address && players.some((p) => p.toLowerCase() === address.toLowerCase());
+  const smooth = smoothJoined;
+  const me = (smooth && gameAddr ? gameAddr : address) as `0x${string}` | undefined;
+
   const calledSet = useMemo(() => new Set(calls), [calls]);
-  const mine = address ? loadBoard(id.toString(), address) : null;
-  const joined = !!address && players.some((p) => p.toLowerCase() === address.toLowerCase());
+  const mine = me ? loadBoard(id.toString(), me) : null;
+  const joined = smoothJoined || mainJoined;
 
   const earnings = useReadContract({
     abi: bingoAbi,
     address: BINGO_ADDRESS,
     functionName: "earningsOf",
-    args: address ? [address, token] : undefined,
+    args: me ? [me, token] : undefined,
     chainId: CHAIN_ID,
-    query: { enabled: !!address && !!arena },
+    query: { enabled: !!me && !!arena },
   });
 
   // The board commitment stored on-chain for this player — used to detect a
@@ -70,9 +84,9 @@ export default function ArenaPage() {
     abi: bingoAbi,
     address: BINGO_ADDRESS,
     functionName: "boardCommitOf",
-    args: address ? [id, address] : undefined,
+    args: me ? [id, me] : undefined,
     chainId: CHAIN_ID,
-    query: { enabled: !!address && !!arena },
+    query: { enabled: !!me && !!arena },
   });
   const onchainCommit = typeof myCommit.data === "string" ? myCommit.data : undefined;
   const hasCommit = !!onchainCommit && !/^0x0+$/.test(onchainCommit);
@@ -83,9 +97,9 @@ export default function ArenaPage() {
     abi: bingoAbi,
     address: BINGO_ADDRESS,
     functionName: "hasRevealed",
-    args: address ? [id, address] : undefined,
+    args: me ? [id, me] : undefined,
     chainId: CHAIN_ID,
-    query: { enabled: !!address && !!arena, refetchInterval: 3000 },
+    query: { enabled: !!me && !!arena, refetchInterval: 3000 },
   });
   const iRevealed = revealedMe.data === true;
 
@@ -120,12 +134,51 @@ export default function ArenaPage() {
     });
   }
 
+  // Smooth join: fund the game wallet once from the main wallet (stake + gas),
+  // then the game wallet approves + commits — and from there plays auto-signed.
+  async function joinSmooth(board: number[]) {
+    if (!address || !arena || !gameAddr) return;
+    if (gw.gas < parseEther("0.25")) {
+      await sendTransactionAsync({ to: gameAddr, value: parseEther("0.3") });
+    }
+    if (gw.token < arena.stake) {
+      await writeContractAsync({
+        abi: erc20Abi,
+        address: token,
+        functionName: "transfer",
+        args: [gameAddr, arena.stake - gw.token],
+        chainId: CHAIN_ID,
+      });
+    }
+    await new Promise((r) => setTimeout(r, 5000));
+    await gw.refetch();
+    const sealed = loadBoard(id.toString(), gameAddr) ?? { board, salt: randomSalt() };
+    saveBoard(id.toString(), gameAddr, sealed);
+    await gameWrite(address, { address: token, abi: erc20Abi, functionName: "approve", args: [BINGO_ADDRESS, maxUint256] });
+    await gameWrite(address, {
+      address: BINGO_ADDRESS,
+      abi: bingoAbi,
+      functionName: "commitBoard",
+      args: [id, commitment(sealed.board, sealed.salt)],
+    });
+  }
+
+  async function sweepGame() {
+    if (!address) return;
+    await gameSweep(address, address, token);
+    await gw.refetch();
+  }
+
+  // Writes route through the game wallet (auto-signed, no popup) once playing
+  // smoothly; otherwise through the connected wallet.
   const write = (fn: string, args: readonly unknown[]) =>
-    writeContractAsync(
-      { abi: bingoAbi, address: BINGO_ADDRESS, functionName: fn, args, chainId: CHAIN_ID } as Parameters<
-        typeof writeContractAsync
-      >[0],
-    );
+    smooth && address
+      ? gameWrite(address, { address: BINGO_ADDRESS, abi: bingoAbi, functionName: fn, args })
+      : writeContractAsync(
+          { abi: bingoAbi, address: BINGO_ADDRESS, functionName: fn, args, chainId: CHAIN_ID } as Parameters<
+            typeof writeContractAsync
+          >[0],
+        );
 
   if (!arena) {
     return <main className="mx-auto max-w-2xl px-5 py-10 text-muted-foreground">Loading arena #{id.toString()}…</main>;
@@ -133,7 +186,7 @@ export default function ArenaPage() {
 
   const state = Number(arena.state);
   const STATES = ["Created", "Committed", "Playing", "Revealing", "Settled", "Cancelled"];
-  const myTurn = state === 1 || state === 2 ? players[Number(arena.turnIndex)]?.toLowerCase() === address?.toLowerCase() : false;
+  const myTurn = state === 1 || state === 2 ? players[Number(arena.turnIndex)]?.toLowerCase() === me?.toLowerCase() : false;
   const lines = mine ? completedLines(mine.board, calledSet) : 0;
   const lastCalled = calls.length ? calls[calls.length - 1] : undefined;
   const STATE_BADGE: BadgeProps["variant"][] = ["open", "full", "playing", "revealing", "settled", "cancelled"];
@@ -168,6 +221,17 @@ export default function ArenaPage() {
         </span>
       </div>
 
+      {!!gameAddr && (gw.gas > 0n || gw.token > 0n) && (
+        <div className="glass flex flex-wrap items-center justify-between gap-2 rounded-xl p-3 text-xs">
+          <span className="font-mono text-muted-foreground">
+            Game wallet: {formatAmount(gw.token, t?.decimals ?? 18, 2)} {t?.symbol} · {formatAmount(gw.gas, 18, 3)} CELO
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => run(sweepGame)} disabled={busy}>
+            Sweep to my wallet
+          </Button>
+        </div>
+      )}
+
       {players.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -176,7 +240,7 @@ export default function ArenaPage() {
           <div className="flex flex-wrap gap-2">
             {players.map((p, i) => {
               const isTurn = (state === 1 || state === 2) && Number(arena.turnIndex) === i;
-              const isMe = p.toLowerCase() === address?.toLowerCase();
+              const isMe = p.toLowerCase() === me?.toLowerCase();
               const prof = profiles[p.toLowerCase()];
               return (
                 <div
@@ -231,6 +295,23 @@ export default function ArenaPage() {
                 ? "Join with this board"
                 : `Place all 25 numbers (${draft.filter((n) => n !== null).length}/25)`}
           </Button>
+          {boardComplete && (
+            <div className="space-y-1.5 border-t border-white/[0.06] pt-3">
+              <Button
+                variant="secondary"
+                onClick={() => run(() => joinSmooth(draft as number[]))}
+                disabled={busy || !address}
+                size="lg"
+                className="w-full"
+              >
+                {busy ? "Setting up smooth play…" : "Join smoothly — no popups per turn"}
+              </Button>
+              <p className="text-[0.7rem] leading-relaxed text-muted-foreground">
+                Funds an in-browser game wallet once (stake + a little CELO), then every turn auto-signs with no wallet
+                popup. Beta: try a small stake; sweep funds back anytime from the bar above.
+              </p>
+            </div>
+          )}
         </div>
       )}
       {state === 0 && joined && <p className="text-sm text-state-open">Joined — waiting for the arena to fill.</p>}
