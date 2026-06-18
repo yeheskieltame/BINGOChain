@@ -35,7 +35,7 @@ contract BingoChainTest is Test {
         assertEq(bingo.owner(), owner, "owner");
         assertEq(bingo.treasury(), treasury, "treasury");
         assertEq(bingo.protocolFeeBps(), FEE_BPS, "fee");
-        assertEq(bingo.version(), "1.2.0", "version");
+        assertEq(bingo.version(), "1.3.0", "version");
     }
 
     function test_ImplementationIsLocked() public {
