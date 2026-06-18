@@ -18,10 +18,14 @@ const RPC = process.env.NEXT_PUBLIC_CELO_MAINNET_RPC || "https://forno.celo.org"
 /// abstraction (CIP-64): CELO is native; cUSD is a fee currency directly; USDT
 /// pays gas via its registered fee adapter. `erc20` is what the player transfers
 /// to the session key; `feeCurrency` is what gas is charged in (undefined = CELO).
+// `fund` is sized to cover a whole game: bingo runs up to 25 calls split between
+// players, plus claim + reveal, and each move reserves gas upfront, so a tiny
+// float runs dry mid-game. These amounts leave headroom; the arena also falls
+// back to the connected wallet if the session key still runs out (e.g. a gas spike).
 export const GAS_TOKENS = {
-  CELO: { label: "CELO", erc20: undefined as Address | undefined, feeCurrency: undefined as Address | undefined, decimals: 18, fund: "0.05" },
-  cUSD: { label: "cUSD", erc20: "0x765DE816845861e75A25fCA122bb6898B8B1282a" as Address, feeCurrency: "0x765DE816845861e75A25fCA122bb6898B8B1282a" as Address, decimals: 18, fund: "0.15" },
-  USDT: { label: "USDT", erc20: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e" as Address, feeCurrency: "0x0E2A3e05bc9A16F5292A6170456A710cb89C6f72" as Address, decimals: 6, fund: "0.15" },
+  CELO: { label: "CELO", erc20: undefined as Address | undefined, feeCurrency: undefined as Address | undefined, decimals: 18, fund: "0.2" },
+  cUSD: { label: "cUSD", erc20: "0x765DE816845861e75A25fCA122bb6898B8B1282a" as Address, feeCurrency: "0x765DE816845861e75A25fCA122bb6898B8B1282a" as Address, decimals: 18, fund: "0.4" },
+  USDT: { label: "USDT", erc20: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e" as Address, feeCurrency: "0x0E2A3e05bc9A16F5292A6170456A710cb89C6f72" as Address, decimals: 6, fund: "0.4" },
 } as const;
 export type GasChoice = keyof typeof GAS_TOKENS;
 
