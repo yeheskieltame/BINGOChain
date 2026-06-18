@@ -27,7 +27,7 @@ export function PlayerStatsCard() {
 
   return (
     <section className="space-y-3">
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Stat label="Games" value={s ? String(s.games) : "0"} />
         <Stat label="Wins" value={s ? String(s.wins) : "0"} />
         <Stat label="Volume" value={s ? s.volume : "0"} />
