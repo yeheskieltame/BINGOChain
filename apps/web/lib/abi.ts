@@ -614,12 +614,44 @@ export const bingoAbi = [
   },
   {
     "type": "function",
+    "name": "sessionKeyOf",
+    "inputs": [
+      {
+        "name": "player",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "setProtocolFee",
     "inputs": [
       {
         "name": "newBps",
         "type": "uint16",
         "internalType": "uint16"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setSessionKey",
+    "inputs": [
+      {
+        "name": "key",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],
@@ -1082,6 +1114,25 @@ export const bingoAbi = [
   },
   {
     "type": "event",
+    "name": "SessionKeySet",
+    "inputs": [
+      {
+        "name": "player",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "key",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "TokenAllowed",
     "inputs": [
       {
@@ -1409,6 +1460,11 @@ export const bingoAbi = [
         "internalType": "address"
       }
     ]
+  },
+  {
+    "type": "error",
+    "name": "SessionKeyInUse",
+    "inputs": []
   },
   {
     "type": "error",
