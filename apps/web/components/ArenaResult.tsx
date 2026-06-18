@@ -73,15 +73,20 @@ export function ArenaResult({ arenaId, called }: { arenaId: string; called: Set<
         <div className="space-y-3">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Revealed boards · verifiable</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            {d.boards.map((b) => (
-              <div key={b.player} className="glass space-y-2 rounded-xl p-3">
-                <div className="flex items-center justify-between">
-                  <Player address={b.player} name={nameOf(b.player)} size="sm" />
-                  {winners.has(b.player.toLowerCase()) && <Badge variant="gold">WON</Badge>}
+            {d.boards.map((b) => {
+              const ln = completedLines(b.board, called);
+              const won = winners.has(b.player.toLowerCase());
+              return (
+                <div key={b.player} className={cn("glass space-y-2 rounded-xl p-3", won && "ring-1 ring-neon/40")}>
+                  <div className="flex items-center justify-between">
+                    <Player address={b.player} name={nameOf(b.player)} size="sm" />
+                    {won && <Badge variant="gold">WON</Badge>}
+                  </div>
+                  <BoardGrid board={b.board} called={called} />
+                  <BingoMeter lines={ln} />
                 </div>
-                <BoardGrid board={b.board} called={called} />
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
