@@ -4,6 +4,7 @@ import { Bricolage_Grotesque, Hanken_Grotesk, Geist_Mono, Anton, Condiment } fro
 import { Providers } from "../components/Providers";
 import { BottomNav } from "../components/BottomNav";
 import { TopNav } from "../components/TopNav";
+import { Footer } from "../components/Footer";
 import { SpaceBackdrop } from "../components/SpaceBackdrop";
 import { ClaudelancePromo } from "../components/ClaudelancePromo";
 import { ReferralCapture } from "../components/ReferralCapture";
@@ -19,8 +20,9 @@ const anton = Anton({ subsets: ["latin"], weight: "400", variable: "--font-anton
 const condiment = Condiment({ subsets: ["latin"], weight: "400", variable: "--font-condiment", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "BINGOChain — onchain bingo on Celo",
-  description: "Strategic onchain bingo on Celo — sealed boards, verifiable winners, staked in $LANCE.",
+  metadataBase: new URL("https://bingochain.vercel.app"),
+  title: "BINGOChain: onchain bingo on Celo",
+  description: "Strategic onchain bingo on Celo. Sealed boards, verifiable winners, staked in $LANCE.",
   // Talent Protocol (Proof of Ship) domain-ownership verification.
   other: {
     "talentapp:project_verification":
@@ -42,7 +44,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <SpaceBackdrop />
           <ReferralCapture />
           <TopNav />
-          <div className="pb-24 md:pb-0">{children}</div>
+          <div className="pb-10 md:pb-0">{children}</div>
+          <Footer />
           <BottomNav />
           <ClaudelancePromo />
         </Providers>

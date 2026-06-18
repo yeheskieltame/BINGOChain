@@ -12,7 +12,7 @@ export function BackButton({ className }: { className?: string }) {
       type="button"
       onClick={() => router.back()}
       className={cn(
-        "inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground",
+        "inline-flex min-h-[44px] items-center gap-1.5 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground",
         className,
       )}
     >

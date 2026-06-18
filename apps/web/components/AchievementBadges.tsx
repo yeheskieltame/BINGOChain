@@ -31,7 +31,7 @@ export function AchievementBadges({ stats }: { stats: PlayerStats | null }) {
           {earned}/{items.length}
         </span>
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {items.map((a) => {
           const Icon = ICONS[a.icon] ?? Sparkles;
           return (

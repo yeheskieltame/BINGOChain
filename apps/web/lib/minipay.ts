@@ -15,6 +15,11 @@ import type { Address } from "viem";
 /// cUSD on Celo mainnet - a direct fee currency MiniPay can pay gas in.
 export const MINIPAY_FEE_CURRENCY: Address = "0x765DE816845861e75A25fCA122bb6898B8B1282a";
 
+/// MiniPay's Add Cash deeplink. Opening it lets the player top up stablecoins
+/// (to cover network fees / acquire stake) without leaving the wallet. Only
+/// meaningful inside MiniPay; the wallet intercepts its own link domain.
+export const MINIPAY_ADD_CASH = "https://link.minipay.xyz/add_cash?tokens=USDM,USDT,USDC";
+
 /// True when running inside the MiniPay in-app browser.
 export function isMiniPay(): boolean {
   if (typeof window === "undefined") return false;

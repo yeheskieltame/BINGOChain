@@ -27,7 +27,7 @@ export function BottomNav() {
               key={href}
               href={href}
               className={cn(
-                "flex flex-1 flex-col items-center gap-1 rounded-lg py-1.5 text-[0.6rem] font-anton uppercase tracking-wide transition-colors",
+                "flex min-h-[52px] flex-1 flex-col items-center justify-center gap-1 rounded-lg py-2 text-[0.6rem] font-anton uppercase tracking-wide transition-colors",
                 active ? "text-neon" : "text-cream/60 hover:text-cream",
               )}
             >
