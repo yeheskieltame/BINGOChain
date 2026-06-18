@@ -214,16 +214,31 @@ export default function ArenaPage() {
     onchainSession.refetch();
   }
 
+  const walletWrite = (fn: string, args: readonly unknown[]) =>
+    writeContractAsync(
+      { abi: bingoAbi, address: BINGO_ADDRESS, functionName: fn, args, chainId: CHAIN_ID, ...miniPayTx() } as Parameters<
+        typeof writeContractAsync
+      >[0],
+    );
+
   // Writes route through the session key (auto-signed, no popup, native gas) when
-  // smooth play is active; otherwise through the connected wallet.
-  const write = (fn: string, args: readonly unknown[]) =>
-    smooth && address
-      ? sessionWrite(address, fn, args)
-      : writeContractAsync(
-          { abi: bingoAbi, address: BINGO_ADDRESS, functionName: fn, args, chainId: CHAIN_ID, ...miniPayTx() } as Parameters<
-            typeof writeContractAsync
-          >[0],
-        );
+  // smooth play is active; otherwise through the connected wallet. If the session
+  // key runs out of gas mid-game, fall back to the connected wallet (one popup)
+  // so the turn still goes through instead of hard-stopping on a sequencer error.
+  const write = async (fn: string, args: readonly unknown[]) => {
+    if (smooth && address) {
+      try {
+        return await sessionWrite(address, fn, args);
+      } catch (e) {
+        if (/insufficient funds|insufficient balance|forwarding_sequencer|exceeds .*balance/i.test(errText(e))) {
+          setMsg("Smooth-play gas ran low — confirm this move in your wallet.");
+          return await walletWrite(fn, args);
+        }
+        throw e;
+      }
+    }
+    return walletWrite(fn, args);
+  };
 
   if (!arena) {
     return <main className="mx-auto max-w-2xl px-5 py-10 text-muted-foreground">Loading arena #{id.toString()}…</main>;
