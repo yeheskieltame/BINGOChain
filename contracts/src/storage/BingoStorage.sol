@@ -22,6 +22,11 @@ struct CoreStorage {
     mapping(address => bool) allowedToken;
     mapping(address => uint256) minStakeOf; // token => minimum stake
     mapping(address => mapping(address => uint256)) earningsByToken; // account => token => amount
+    // Session keys (append-only): a player authorizes an agent key to act for them
+    // in gameplay (callNumber / claimBingo / revealBoard) so the app can auto-sign
+    // turns with no wallet popup. Gameplay only — never fund movement or joining.
+    mapping(address => address) sessionKeyOf; // player => authorized session key
+    mapping(address => address) playerOfSession; // session key => the player it acts for
 }
 
 abstract contract BingoStorage {

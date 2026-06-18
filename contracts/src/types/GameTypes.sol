@@ -39,3 +39,4 @@ error InvalidBoard();
 error NothingToWithdraw();
 error CancelNotAllowed();
 error CannotRescueGameToken();
+error SessionKeyInUse();
