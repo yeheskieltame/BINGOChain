@@ -20,8 +20,9 @@ const anton = Anton({ subsets: ["latin"], weight: "400", variable: "--font-anton
 const condiment = Condiment({ subsets: ["latin"], weight: "400", variable: "--font-condiment", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "BINGOChain — onchain bingo on Celo",
-  description: "Strategic onchain bingo on Celo — sealed boards, verifiable winners, staked in $LANCE.",
+  metadataBase: new URL("https://bingochain.vercel.app"),
+  title: "BINGOChain: onchain bingo on Celo",
+  description: "Strategic onchain bingo on Celo. Sealed boards, verifiable winners, staked in $LANCE.",
   // Talent Protocol (Proof of Ship) domain-ownership verification.
   other: {
     "talentapp:project_verification":
