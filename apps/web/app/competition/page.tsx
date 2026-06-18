@@ -113,8 +113,8 @@ export default function CupPage() {
               ) : board.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No entries in this window yet.</p>
               ) : (
-                <div className="glass overflow-hidden rounded-2xl">
-                  <table className="w-full text-sm">
+                <div className="glass overflow-x-auto rounded-2xl">
+                  <table className="w-full min-w-[460px] text-sm">
                     <thead className="text-left text-xs text-muted-foreground">
                       <tr className="border-b border-border">
                         <th className="px-4 py-3">#</th>
