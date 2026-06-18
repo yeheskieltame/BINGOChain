@@ -388,7 +388,22 @@ export default function ArenaPage() {
               </div>
             )}
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">{myTurn ? "Your turn to call a number" : "Called numbers"}</p>
+              {/* Bingo calling is turn-based: only the player whose turn it is can
+                  call a number, then the turn passes to the next. Say so plainly so
+                  a disabled pad never looks like a bug. */}
+              <p className="text-sm">
+                {!joined ? (
+                  <span className="text-muted-foreground">You are spectating — not a player in this arena.</span>
+                ) : myTurn ? (
+                  <span className="font-medium text-state-open">Your turn — pick a number to call.</span>
+                ) : (
+                  <span className="text-muted-foreground">
+                    Waiting for{" "}
+                    <span className="font-mono text-foreground">{shortAddress(players[Number(arena.turnIndex)] ?? "")}</span> to
+                    call…
+                  </span>
+                )}
+              </p>
               <NumberPad called={calledSet} disabled={busy || !myTurn} onCall={(n) => run(() => write("callNumber", [id, n]))} lastCalled={lastCalled} />
             </div>
           </div>
