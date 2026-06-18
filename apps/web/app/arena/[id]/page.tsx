@@ -7,7 +7,7 @@ import { useAccount, useReadContract, useSendTransaction, useWriteContract } fro
 import { bingoAbi, BINGO_ADDRESS, CHAIN_ID } from "../../../lib/bingo";
 import { commitment, randomBoard, randomSalt, completedLines } from "../../../lib/board";
 import { sessionAccount, sessionWrite, sessionFunded, saveGasChoice, GAS_TOKENS, type GasChoice } from "../../../lib/session";
-import { isMiniPay, miniPayTx } from "../../../lib/minipay";
+import { isMiniPay, miniPayTx, MINIPAY_ADD_CASH } from "../../../lib/minipay";
 import Link from "next/link";
 import { formatAmount, shortAddress, profileHref } from "../../../lib/format";
 import { cn, errText } from "../../../lib/utils";
@@ -232,7 +232,7 @@ export default function ArenaPage() {
         return await sessionWrite(address, fn, args);
       } catch (e) {
         if (/insufficient funds|insufficient balance|forwarding_sequencer|exceeds .*balance/i.test(errText(e))) {
-          setMsg("Smooth-play gas ran low — confirm this move in your wallet.");
+          setMsg("Smooth play ran low on network fees. Confirm this move in your wallet.");
           return await walletWrite(fn, args);
         }
         throw e;
@@ -287,7 +287,7 @@ export default function ArenaPage() {
           {smooth ? (
             <>
               <span className="flex items-center gap-1.5 font-mono text-state-open">
-                <span className="size-1.5 rounded-full bg-state-open" /> Smooth play on — turns auto-sign, no popup
+                <span className="size-1.5 rounded-full bg-state-open" /> Smooth play on · turns auto-sign, no popup
               </span>
               <Button variant="ghost" size="sm" onClick={() => run(revokeSmooth)} disabled={busy}>
                 Turn off
@@ -296,7 +296,7 @@ export default function ArenaPage() {
           ) : (
             <div className="flex w-full flex-col gap-2">
               <span className="font-mono text-muted-foreground">
-                Smooth play: authorize once, then every turn auto-signs with no popup. Pick the currency to pay gas in:
+                Smooth play: authorize once, then every turn auto-signs with no popup. Pick the currency to pay network fees in:
               </span>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(GAS_TOKENS) as GasChoice[])
@@ -314,6 +314,14 @@ export default function ArenaPage() {
                     </Button>
                   ))}
               </div>
+              {miniPay && (
+                <a
+                  href={MINIPAY_ADD_CASH}
+                  className="font-mono text-[11px] text-neon/80 underline-offset-4 hover:underline"
+                >
+                  Low on funds? Add cash in MiniPay
+                </a>
+              )}
             </div>
           )}
         </div>
