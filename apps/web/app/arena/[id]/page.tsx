@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { erc20Abi, parseEther, parseUnits } from "viem";
-import { useAccount, useBalance, useReadContract, useSendTransaction, useWriteContract } from "wagmi";
-import { bingoAbi, BINGO_ADDRESS, CHAIN_ID, TOKENS } from "../../../lib/bingo";
+import { useAccount, useReadContract, useSendTransaction, useWriteContract } from "wagmi";
+import { bingoAbi, BINGO_ADDRESS, CHAIN_ID } from "../../../lib/bingo";
 import { commitment, randomBoard, randomSalt, completedLines } from "../../../lib/board";
-import { sessionAccount, sessionGas, sessionWrite } from "../../../lib/session";
+import { sessionAccount, sessionWrite, sessionFunded, saveGasChoice, GAS_TOKENS, type GasChoice } from "../../../lib/session";
 import { formatAmount, shortAddress } from "../../../lib/format";
 import { cn } from "../../../lib/utils";
 import { useArena } from "../../../hooks/useArena";
@@ -60,7 +60,6 @@ export default function ArenaPage() {
   // player stays the on-chain player, so `me` is always the connected wallet.
   const me = address;
   const sessionAddr = useMemo(() => (address ? sessionAccount(address).address : undefined), [address]);
-  const { data: nativeBal } = useBalance({ address, chainId: CHAIN_ID, query: { enabled: !!address } });
 
   const calledSet = useMemo(() => new Set(calls), [calls]);
   const mine = me ? loadBoard(id.toString(), me) : null;
@@ -79,15 +78,11 @@ export default function ArenaPage() {
     !!sessionAddr &&
     typeof onchainSession.data === "string" &&
     onchainSession.data.toLowerCase() === sessionAddr.toLowerCase();
-  const [gas, setGas] = useState<{ funded: boolean; feeCurrency?: `0x${string}`; celo: bigint; cusd: bigint }>({
-    funded: false,
-    celo: 0n,
-    cusd: 0n,
-  });
+  const [funded, setFunded] = useState(false);
   useEffect(() => {
     if (!address) return;
     let on = true;
-    const f = () => sessionGas(address).then((g) => on && setGas(g)).catch(() => {});
+    const f = () => sessionFunded(address).then((v) => on && setFunded(v)).catch(() => {});
     f();
     const iv = setInterval(f, 5000);
     return () => {
@@ -95,7 +90,7 @@ export default function ArenaPage() {
       clearInterval(iv);
     };
   }, [address]);
-  const smooth = sessionAuthorized && gas.funded;
+  const smooth = sessionAuthorized && funded;
 
   const earnings = useReadContract({
     abi: bingoAbi,
@@ -167,10 +162,12 @@ export default function ArenaPage() {
   }
 
   // Enable smooth play: authorize the in-app session key on-chain (one signature),
-  // then fund it with a little gas natively — CELO if you have it, else cUSD. From
-  // then on every turn auto-signs with no popup.
-  async function enableSmooth() {
+  // then fund it with a little gas in the currency the player picked (CELO native,
+  // or cUSD / USDT via Celo fee abstraction). From then on every turn auto-signs
+  // with no popup, gas paid natively in that currency.
+  async function enableSmooth(choice: GasChoice) {
     if (!address || !sessionAddr) return;
+    saveGasChoice(address, choice);
     if (!sessionAuthorized) {
       await writeContractAsync({
         abi: bingoAbi,
@@ -180,21 +177,20 @@ export default function ArenaPage() {
         chainId: CHAIN_ID,
       });
     }
-    if (!gas.funded) {
-      if ((nativeBal?.value ?? 0n) >= parseEther("0.06")) {
-        await sendTransactionAsync({ to: sessionAddr, value: parseEther("0.05") });
-      } else {
-        await writeContractAsync({
-          abi: erc20Abi,
-          address: TOKENS.cUSD.address as `0x${string}`,
-          functionName: "transfer",
-          args: [sessionAddr, parseUnits("0.1", TOKENS.cUSD.decimals)],
-          chainId: CHAIN_ID,
-        });
-      }
+    const opt = GAS_TOKENS[choice];
+    if (opt.erc20) {
+      await writeContractAsync({
+        abi: erc20Abi,
+        address: opt.erc20,
+        functionName: "transfer",
+        args: [sessionAddr, parseUnits(opt.fund, opt.decimals)],
+        chainId: CHAIN_ID,
+      });
+    } else {
+      await sendTransactionAsync({ to: sessionAddr, value: parseEther(opt.fund) });
     }
     await new Promise((r) => setTimeout(r, 4000));
-    await sessionGas(address).then(setGas).catch(() => {});
+    await sessionFunded(address).then(setFunded).catch(() => {});
     onchainSession.refetch();
   }
 
@@ -214,7 +210,7 @@ export default function ArenaPage() {
   // smooth play is active; otherwise through the connected wallet.
   const write = (fn: string, args: readonly unknown[]) =>
     smooth && address
-      ? sessionWrite(address, fn, args, gas.feeCurrency)
+      ? sessionWrite(address, fn, args)
       : writeContractAsync(
           { abi: bingoAbi, address: BINGO_ADDRESS, functionName: fn, args, chainId: CHAIN_ID } as Parameters<
             typeof writeContractAsync
@@ -274,15 +270,24 @@ export default function ArenaPage() {
               </Button>
             </>
           ) : (
-            <>
+            <div className="flex w-full flex-col gap-2">
               <span className="font-mono text-muted-foreground">
-                Smooth play: authorize once, then no popup per turn (gas in{" "}
-                {(nativeBal?.value ?? 0n) >= parseEther("0.06") ? "CELO" : "cUSD"})
+                Smooth play: authorize once, then every turn auto-signs with no popup. Pick the currency to pay gas in:
               </span>
-              <Button variant="secondary" size="sm" onClick={() => run(enableSmooth)} disabled={busy || !sessionAddr}>
-                {busy ? "Enabling…" : "Enable smooth play"}
-              </Button>
-            </>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(GAS_TOKENS) as GasChoice[]).map((c) => (
+                  <Button
+                    key={c}
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => run(() => enableSmooth(c))}
+                    disabled={busy || !sessionAddr}
+                  >
+                    {busy ? "Enabling…" : `Pay in ${c}`}
+                  </Button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       )}
