@@ -7,8 +7,9 @@ import { useAccount, useReadContract, useSendTransaction, useWriteContract } fro
 import { bingoAbi, BINGO_ADDRESS, CHAIN_ID } from "../../../lib/bingo";
 import { commitment, randomBoard, randomSalt, completedLines } from "../../../lib/board";
 import { sessionAccount, sessionWrite, sessionFunded, saveGasChoice, GAS_TOKENS, type GasChoice } from "../../../lib/session";
+import { isMiniPay, miniPayTx } from "../../../lib/minipay";
 import { formatAmount, shortAddress } from "../../../lib/format";
-import { cn } from "../../../lib/utils";
+import { cn, errText } from "../../../lib/utils";
 import { useArena } from "../../../hooks/useArena";
 import { useToken } from "../../../hooks/useToken";
 import { tokenInfo } from "../../../components/ArenaCard";
@@ -60,6 +61,9 @@ export default function ArenaPage() {
   // player stays the on-chain player, so `me` is always the connected wallet.
   const me = address;
   const sessionAddr = useMemo(() => (address ? sessionAccount(address).address : undefined), [address]);
+  // MiniPay holds stablecoins (no CELO) and accepts only legacy + feeCurrency txs.
+  const [miniPay, setMiniPay] = useState(false);
+  useEffect(() => setMiniPay(isMiniPay()), []);
 
   const calledSet = useMemo(() => new Set(calls), [calls]);
   const mine = me ? loadBoard(id.toString(), me) : null;
@@ -135,8 +139,8 @@ export default function ArenaPage() {
       refetch();
       earnings.refetch();
     } catch (e) {
-      const m = (e as { shortMessage?: string })?.shortMessage ?? (e instanceof Error ? e.message : String(e));
-      setMsg(/reject|denied|user refus/i.test(m) ? "Cancelled in your wallet." : m.slice(0, 160));
+      const m = errText(e);
+      setMsg(/reject|denied|user refus/i.test(m) ? "Cancelled in your wallet." : m.slice(0, 220));
     } finally {
       setBusy(false);
     }
@@ -158,7 +162,8 @@ export default function ArenaPage() {
       functionName: "commitBoard",
       args: [id, commitment(sealed.board, sealed.salt)],
       chainId: CHAIN_ID,
-    });
+      ...miniPayTx(),
+    } as Parameters<typeof writeContractAsync>[0]);
   }
 
   // Enable smooth play: authorize the in-app session key on-chain (one signature),
@@ -175,7 +180,8 @@ export default function ArenaPage() {
         functionName: "setSessionKey",
         args: [sessionAddr],
         chainId: CHAIN_ID,
-      });
+        ...miniPayTx(),
+      } as Parameters<typeof writeContractAsync>[0]);
     }
     const opt = GAS_TOKENS[choice];
     if (opt.erc20) {
@@ -185,7 +191,8 @@ export default function ArenaPage() {
         functionName: "transfer",
         args: [sessionAddr, parseUnits(opt.fund, opt.decimals)],
         chainId: CHAIN_ID,
-      });
+        ...miniPayTx(),
+      } as Parameters<typeof writeContractAsync>[0]);
     } else {
       await sendTransactionAsync({ to: sessionAddr, value: parseEther(opt.fund) });
     }
@@ -202,7 +209,8 @@ export default function ArenaPage() {
       functionName: "setSessionKey",
       args: ["0x0000000000000000000000000000000000000000"],
       chainId: CHAIN_ID,
-    });
+      ...miniPayTx(),
+    } as Parameters<typeof writeContractAsync>[0]);
     onchainSession.refetch();
   }
 
@@ -212,7 +220,7 @@ export default function ArenaPage() {
     smooth && address
       ? sessionWrite(address, fn, args)
       : writeContractAsync(
-          { abi: bingoAbi, address: BINGO_ADDRESS, functionName: fn, args, chainId: CHAIN_ID } as Parameters<
+          { abi: bingoAbi, address: BINGO_ADDRESS, functionName: fn, args, chainId: CHAIN_ID, ...miniPayTx() } as Parameters<
             typeof writeContractAsync
           >[0],
         );
@@ -275,17 +283,20 @@ export default function ArenaPage() {
                 Smooth play: authorize once, then every turn auto-signs with no popup. Pick the currency to pay gas in:
               </span>
               <div className="flex flex-wrap gap-2">
-                {(Object.keys(GAS_TOKENS) as GasChoice[]).map((c) => (
-                  <Button
-                    key={c}
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => run(() => enableSmooth(c))}
-                    disabled={busy || !sessionAddr}
-                  >
-                    {busy ? "Enabling…" : `Pay in ${c}`}
-                  </Button>
-                ))}
+                {(Object.keys(GAS_TOKENS) as GasChoice[])
+                  // MiniPay holds stablecoins, not CELO, so do not offer paying gas in CELO there.
+                  .filter((c) => !(miniPay && c === "CELO"))
+                  .map((c) => (
+                    <Button
+                      key={c}
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => run(() => enableSmooth(c))}
+                      disabled={busy || !sessionAddr}
+                    >
+                      {busy ? "Enabling…" : `Pay in ${c}`}
+                    </Button>
+                  ))}
               </div>
             </div>
           )}
