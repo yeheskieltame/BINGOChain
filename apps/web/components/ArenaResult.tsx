@@ -9,6 +9,7 @@ import { BoardGrid } from "./BoardGrid";
 import { BingoMeter } from "./BingoMeter";
 import { Player } from "./Player";
 import { Badge } from "./ui/badge";
+import { useProfiles } from "../hooks/useProfiles";
 import { cn } from "../lib/utils";
 
 /**
@@ -41,8 +42,13 @@ export function ArenaResult({ arenaId, called }: { arenaId: string; called: Set<
     };
   }, [arenaId]);
 
+  const profiles = useProfiles(
+    d ? [...d.boards.map((b) => b.player), ...d.winners.map((w) => w.address)] : [],
+  );
+
   if (!d || (d.winners.length === 0 && d.boards.length === 0)) return null;
   const winners = new Set(d.winners.map((w) => w.address.toLowerCase()));
+  const avatarOf = (addr: string) => profiles[addr.toLowerCase()]?.avatarUrl;
   const iWon = !!address && winners.has(address.toLowerCase());
   const nameOf = (addr: string) =>
     d.players.find((p) => p.address.toLowerCase() === addr.toLowerCase())?.name ?? undefined;
@@ -61,7 +67,7 @@ export function ArenaResult({ arenaId, called }: { arenaId: string; called: Set<
           <div className="space-y-2">
             {d.winners.map((w) => (
               <div key={w.address} className="flex items-center justify-between">
-                <Player address={w.address} name={w.name ?? undefined} size="sm" />
+                <Player address={w.address} name={w.name ?? undefined} imageUrl={avatarOf(w.address)} size="sm" />
                 <span className="font-mono text-sm font-semibold text-neon">+{w.prize}</span>
               </div>
             ))}
@@ -79,7 +85,7 @@ export function ArenaResult({ arenaId, called }: { arenaId: string; called: Set<
               return (
                 <div key={b.player} className={cn("glass space-y-2 rounded-xl p-3", won && "ring-1 ring-neon/40")}>
                   <div className="flex items-center justify-between">
-                    <Player address={b.player} name={nameOf(b.player)} size="sm" />
+                    <Player address={b.player} name={nameOf(b.player)} imageUrl={avatarOf(b.player)} size="sm" />
                     {won && <Badge variant="gold">WON</Badge>}
                   </div>
                   <BoardGrid board={b.board} called={called} />
