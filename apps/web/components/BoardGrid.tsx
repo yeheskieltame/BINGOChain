@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { motion } from "motion/react";
 import { cn } from "../lib/utils";
 import { LINES, completedLineIndices } from "../lib/board";
@@ -8,8 +9,8 @@ import { LINES, completedLineIndices } from "../lib/board";
 const center = (cell: number) => ({ x: (cell % 5) * 20 + 10, y: Math.floor(cell / 5) * 20 + 10 });
 
 /// Renders a 5×5 board. Called cells are gold; the most recently called pulses.
-/// Each completed row/column/diagonal gets a neon strike so the player can see
-/// at a glance how many lines they have.
+/// Each completed row/column/diagonal gets a neon strike that skips a hole over
+/// every number (an SVG mask) so the digits stay readable.
 export function BoardGrid({
   board,
   called,
@@ -20,6 +21,7 @@ export function BoardGrid({
   lastCalled?: number;
 }) {
   const struck = called ? completedLineIndices(board, called) : [];
+  const maskId = `bm-${useId().replace(/:/g, "")}`;
 
   return (
     <div className="relative">
@@ -57,16 +59,27 @@ export function BoardGrid({
           className="pointer-events-none absolute inset-0 h-full w-full"
           viewBox="0 0 100 100"
         >
-          {struck.map((li) => {
-            const a = center(LINES[li][0]);
-            const b = center(LINES[li][4]);
-            return (
-              <g key={li}>
-                <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="hsl(var(--primary))" strokeWidth={7} strokeLinecap="round" opacity={0.25} />
-                <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="hsl(var(--primary))" strokeWidth={3.5} strokeLinecap="round" opacity={0.95} />
-              </g>
-            );
-          })}
+          <defs>
+            <mask id={maskId}>
+              <rect width="100" height="100" fill="white" />
+              {board.map((_, i) => {
+                const c = center(i);
+                return <circle key={i} cx={c.x} cy={c.y} r="6.5" fill="black" />;
+              })}
+            </mask>
+          </defs>
+          <g mask={`url(#${maskId})`}>
+            {struck.map((li) => {
+              const a = center(LINES[li][0]);
+              const b = center(LINES[li][4]);
+              return (
+                <g key={li}>
+                  <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="hsl(var(--primary))" strokeWidth={6} strokeLinecap="round" opacity={0.2} />
+                  <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="hsl(var(--primary))" strokeWidth={3} strokeLinecap="round" opacity={0.95} />
+                </g>
+              );
+            })}
+          </g>
         </svg>
       )}
     </div>
