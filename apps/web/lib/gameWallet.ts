@@ -22,15 +22,38 @@ const ERC20_MIN = [
 const RPC = process.env.NEXT_PUBLIC_CELO_MAINNET_RPC || "https://forno.celo.org";
 const keyFor = (owner: string) => `bingo:gamewallet:${owner.toLowerCase()}`;
 
+// Per-session fallback if localStorage is blocked (some mobile in-app webviews,
+// e.g. MiniPay, throw on storage access). Keeps the game wallet usable within the
+// session even when it can't be persisted.
+const memKeys: Record<string, Hex> = {};
+
+/// True if persistent storage is available. When false, a game wallet only lasts
+/// the session — callers should warn the player (they'd lose it on reload).
+export function storageAvailable(): boolean {
+  try {
+    const k = "bingo:storage-probe";
+    localStorage.setItem(k, "1");
+    localStorage.removeItem(k);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /// Load (or create + persist) the game wallet private key for an owner address.
+/// Never throws: falls back to an in-memory key if storage is unavailable.
 export function loadGameKey(owner: string): Hex {
   const k = keyFor(owner);
-  let pk = (typeof window !== "undefined" ? (localStorage.getItem(k) as Hex | null) : null) ?? null;
-  if (!pk) {
-    pk = generatePrivateKey();
-    if (typeof window !== "undefined") localStorage.setItem(k, pk);
+  try {
+    const existing = localStorage.getItem(k) as Hex | null;
+    if (existing) return existing;
+    const pk = generatePrivateKey();
+    localStorage.setItem(k, pk);
+    return pk;
+  } catch {
+    if (!memKeys[k]) memKeys[k] = generatePrivateKey();
+    return memKeys[k];
   }
-  return pk;
 }
 
 export function gameAccount(owner: string) {

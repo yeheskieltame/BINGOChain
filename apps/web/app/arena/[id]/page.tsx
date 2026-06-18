@@ -6,7 +6,7 @@ import { erc20Abi, maxUint256, parseEther } from "viem";
 import { useAccount, useReadContract, useSendTransaction, useWriteContract } from "wagmi";
 import { bingoAbi, BINGO_ADDRESS, CHAIN_ID } from "../../../lib/bingo";
 import { commitment, randomBoard, randomSalt, completedLines } from "../../../lib/board";
-import { gameWrite, gameSweep } from "../../../lib/gameWallet";
+import { gameWrite, gameSweep, storageAvailable } from "../../../lib/gameWallet";
 import { useGameWallet } from "../../../hooks/useGameWallet";
 import { formatAmount, shortAddress } from "../../../lib/format";
 import { cn } from "../../../lib/utils";
@@ -44,6 +44,8 @@ export default function ArenaPage() {
   const { arena, players, calls, refetch } = useArena(id);
   const profiles = useProfiles(players);
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const storageOk = useMemo(() => (typeof window === "undefined" ? true : storageAvailable()), []);
   // The board the player builds before joining: 25 cells, null = empty. Numbers
   // are dragged/tapped in from the tray; complete once every cell is filled.
   const [draft, setDraft] = useState<(number | null)[]>(() => Array(25).fill(null));
@@ -105,11 +107,15 @@ export default function ArenaPage() {
 
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
+    setMsg(null);
     try {
       await fn();
       await new Promise((r) => setTimeout(r, 4000));
       refetch();
       earnings.refetch();
+    } catch (e) {
+      const m = (e as { shortMessage?: string })?.shortMessage ?? (e instanceof Error ? e.message : String(e));
+      setMsg(/reject|denied|user refus/i.test(m) ? "Cancelled in your wallet." : m.slice(0, 160));
     } finally {
       setBusy(false);
     }
@@ -137,7 +143,10 @@ export default function ArenaPage() {
   // Smooth join: fund the game wallet once from the main wallet (stake + gas),
   // then the game wallet approves + commits — and from there plays auto-signed.
   async function joinSmooth(board: number[]) {
-    if (!address || !arena || !gameAddr) return;
+    if (!address || !arena) return;
+    if (!gameAddr) {
+      throw new Error("Game wallet unavailable on this device (storage may be blocked). Use the normal Join button instead.");
+    }
     if (gw.gas < parseEther("0.25")) {
       await sendTransactionAsync({ to: gameAddr, value: parseEther("0.3") });
     }
@@ -232,6 +241,10 @@ export default function ArenaPage() {
         </div>
       )}
 
+      {msg && (
+        <p className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{msg}</p>
+      )}
+
       {players.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -310,6 +323,12 @@ export default function ArenaPage() {
                 Funds an in-browser game wallet once (stake + a little CELO), then every turn auto-signs with no wallet
                 popup. Beta: try a small stake; sweep funds back anytime from the bar above.
               </p>
+              {!storageOk && (
+                <p className="text-[0.7rem] leading-relaxed text-amber-500">
+                  This device blocks browser storage, so the game wallet won&apos;t survive a refresh. Prefer the normal
+                  Join here, or sweep before reloading.
+                </p>
+              )}
             </div>
           )}
         </div>
