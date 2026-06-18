@@ -18,3 +18,8 @@ export function parseAmount(value: string, decimals: number): bigint {
 export function shortAddress(addr: string): string {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
+
+/// Canonical link to a player's public profile page.
+export function profileHref(address: string): string {
+  return `/profile/${address.toLowerCase()}`;
+}

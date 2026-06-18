@@ -8,7 +8,8 @@ import { bingoAbi, BINGO_ADDRESS, CHAIN_ID } from "../../../lib/bingo";
 import { commitment, randomBoard, randomSalt, completedLines } from "../../../lib/board";
 import { sessionAccount, sessionWrite, sessionFunded, saveGasChoice, GAS_TOKENS, type GasChoice } from "../../../lib/session";
 import { isMiniPay, miniPayTx } from "../../../lib/minipay";
-import { formatAmount, shortAddress } from "../../../lib/format";
+import Link from "next/link";
+import { formatAmount, shortAddress, profileHref } from "../../../lib/format";
 import { cn, errText } from "../../../lib/utils";
 import { useArena } from "../../../hooks/useArena";
 import { useToken } from "../../../hooks/useToken";
@@ -333,10 +334,12 @@ export default function ArenaPage() {
               const isMe = p.toLowerCase() === me?.toLowerCase();
               const prof = profiles[p.toLowerCase()];
               return (
-                <div
+                <Link
                   key={p}
+                  href={profileHref(p)}
+                  title="View profile"
                   className={cn(
-                    "glass flex items-center gap-2 rounded-full py-1 pl-1 pr-3",
+                    "glass flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition-opacity hover:opacity-80",
                     isTurn && "ring-1 ring-gold-400/60",
                   )}
                 >
@@ -346,7 +349,7 @@ export default function ArenaPage() {
                     {isMe && <span className="text-gold-300"> · you</span>}
                   </span>
                   {isTurn && <span className="size-1.5 animate-pulse rounded-full bg-gold-400" />}
-                </div>
+                </Link>
               );
             })}
           </div>
