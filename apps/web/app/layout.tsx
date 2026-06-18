@@ -4,6 +4,7 @@ import { Bricolage_Grotesque, Hanken_Grotesk, Geist_Mono, Anton, Condiment } fro
 import { Providers } from "../components/Providers";
 import { BottomNav } from "../components/BottomNav";
 import { TopNav } from "../components/TopNav";
+import { Footer } from "../components/Footer";
 import { SpaceBackdrop } from "../components/SpaceBackdrop";
 import { ClaudelancePromo } from "../components/ClaudelancePromo";
 import { ReferralCapture } from "../components/ReferralCapture";
@@ -42,7 +43,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <SpaceBackdrop />
           <ReferralCapture />
           <TopNav />
-          <div className="pb-24 md:pb-0">{children}</div>
+          <div className="pb-10 md:pb-0">{children}</div>
+          <Footer />
           <BottomNav />
           <ClaudelancePromo />
         </Providers>
