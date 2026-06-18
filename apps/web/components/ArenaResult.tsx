@@ -50,15 +50,19 @@ export function ArenaResult({ arenaId, called }: { arenaId: string; called: Set<
   return (
     <div className="space-y-4">
       {d.winners.length > 0 && (
-        <div className="glass rounded-xl p-4">
-          <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
-            {d.winners.length > 1 ? "Winners" : "Winner"} · {d.match.prizePool} prize pool
+        <div className={cn("glass rounded-xl p-4", iWon && "ring-1 ring-neon/50 shadow-glow")}>
+          <p className="mb-3 flex items-center gap-2 font-anton text-lg uppercase text-cream">
+            <Trophy className="size-5 text-neon" />
+            {iWon ? "You won!" : d.winners.length > 1 ? "Winners" : "Winner"}
+            <span className="ml-auto font-mono text-xs font-normal text-muted-foreground">
+              {d.match.prizePool} pot
+            </span>
           </p>
           <div className="space-y-2">
             {d.winners.map((w) => (
               <div key={w.address} className="flex items-center justify-between">
                 <Player address={w.address} name={w.name ?? undefined} size="sm" />
-                <span className="font-mono text-sm font-semibold text-gold-300">+{w.prize}</span>
+                <span className="font-mono text-sm font-semibold text-neon">+{w.prize}</span>
               </div>
             ))}
           </div>
