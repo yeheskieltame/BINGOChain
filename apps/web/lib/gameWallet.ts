@@ -1,8 +1,13 @@
 "use client";
 
-import { createWalletClient, createPublicClient, http, type Hex, type Abi } from "viem";
+import { createWalletClient, createPublicClient, http, parseEther, type Hex, type Abi } from "viem";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import { celo } from "./bingo";
+
+const ERC20_MIN = [
+  { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ type: "address" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "transfer", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [{ type: "bool" }] },
+] as const;
 
 // Smooth play ("gasless feel") without a contract change: each owner gets a
 // persistent in-browser GAME WALLET. The owner funds it once (stake + a little
@@ -47,6 +52,30 @@ export async function gameWrite(
   const hash = await gameClient(owner).writeContract(call as Parameters<ReturnType<typeof gameClient>["writeContract"]>[0]);
   await gamePublic.waitForTransactionReceipt({ hash, timeout: 120_000 });
   return hash;
+}
+
+/// Recover funds: send the game wallet's full token balance, then its CELO
+/// (minus a small gas buffer), back to `to`. Always available so nothing is
+/// stranded in the game wallet.
+export async function gameSweep(owner: string, to: `0x${string}`, token: `0x${string}`): Promise<void> {
+  const acct = gameAccount(owner);
+  const client = gameClient(owner);
+  const tokBal = (await gamePublic.readContract({
+    address: token,
+    abi: ERC20_MIN,
+    functionName: "balanceOf",
+    args: [acct.address],
+  })) as bigint;
+  if (tokBal > 0n) {
+    const h = await client.writeContract({ address: token, abi: ERC20_MIN, functionName: "transfer", args: [to, tokBal] });
+    await gamePublic.waitForTransactionReceipt({ hash: h });
+  }
+  const bal = await gamePublic.getBalance({ address: acct.address });
+  const buffer = parseEther("0.02"); // leave a little for the transfer's own gas
+  if (bal > buffer) {
+    const h = await client.sendTransaction({ to, value: bal - buffer });
+    await gamePublic.waitForTransactionReceipt({ hash: h });
+  }
 }
 
 /// Native CELO + token balances of the game wallet, for the funding UI.
