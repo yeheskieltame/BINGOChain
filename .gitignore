@@ -16,3 +16,7 @@ apps/web/next-env.d.ts
 # Local operator play-harness output — holds generated wallet PRIVATE KEYS,
 # game state, logs, results. NEVER commit.
 scripts/out/
+
+# Local wallet store: 106 BingoChain play-wallet PRIVATE KEYS, kept here
+# (separate from the Claudelance worker wallets). NEVER commit.
+/wallets/
