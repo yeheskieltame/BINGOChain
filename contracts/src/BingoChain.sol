@@ -30,7 +30,8 @@ import {
     InvalidBoard,
     NothingToWithdraw,
     CancelNotAllowed,
-    CannotRescueGameToken
+    CannotRescueGameToken,
+    SessionKeyInUse
 } from "./types/GameTypes.sol";
 import { CommitLib } from "./libraries/CommitLib.sol";
 import { BoardLib } from "./libraries/BoardLib.sol";
@@ -66,6 +67,7 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
     event ArenaSettled(uint256 indexed arenaId, uint256 prizePool, uint256 fee, uint8 winnerCount);
     event WinnerPaid(uint256 indexed arenaId, address indexed winner, uint256 amount);
     event Withdrawn(address indexed account, address indexed token, uint256 amount);
+    event SessionKeySet(address indexed player, address indexed key);
     event ProtocolFeeUpdated(uint16 oldBps, uint16 newBps);
     event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
     event ERC20Rescued(address indexed token, address indexed to, uint256 amount);
@@ -100,6 +102,36 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
+
+    // ── session keys ────────────────────────────────────────────────────────────
+    /// @notice Authorize `key` to act for you in gameplay (callNumber / claimBingo /
+    ///         revealBoard) so a client can auto-sign turns with no wallet popup.
+    ///         Pass address(0) to revoke. A key may act for at most one player.
+    ///         Gameplay only: a session key can never move funds or join for you.
+    function setSessionKey(address key) external {
+        CoreStorage storage s = _s();
+        address prev = s.sessionKeyOf[msg.sender];
+        if (prev != address(0)) s.playerOfSession[prev] = address(0);
+        if (key != address(0)) {
+            address boundTo = s.playerOfSession[key];
+            if (boundTo != address(0) && boundTo != msg.sender) revert SessionKeyInUse();
+            s.playerOfSession[key] = msg.sender;
+        }
+        s.sessionKeyOf[msg.sender] = key;
+        emit SessionKeySet(msg.sender, key);
+    }
+
+    /// @notice The session key a player has authorized (address(0) if none).
+    function sessionKeyOf(address player) external view returns (address) {
+        return _s().sessionKeyOf[player];
+    }
+
+    /// @dev The acting player for the current call: if msg.sender is a registered
+    ///      session key, the player it represents; otherwise msg.sender itself.
+    function _actor() internal view returns (address) {
+        address p = _s().playerOfSession[msg.sender];
+        return p == address(0) ? msg.sender : p;
+    }
 
     /// @notice Open a new arena settled in `token`. The creator joins via {commitBoard}.
     /// @param token A whitelisted ERC20 (CELO, cUSD, USDC, USDT).
@@ -198,7 +230,8 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         if ((a.calledMask & bit) != 0) revert NumberAlreadyCalled(number);
 
         address[] storage players = s.arenaPlayers[arenaId];
-        if (msg.sender != players[a.turnIndex]) revert NotYourTurn();
+        address actor = _actor();
+        if (actor != players[a.turnIndex]) revert NotYourTurn();
 
         a.calledMask |= bit;
         s.callSequence[arenaId].push(number);
@@ -208,7 +241,7 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
             a.turnIndex = uint8((uint256(a.turnIndex) + 1) % players.length);
         }
 
-        emit NumberCalled(arenaId, msg.sender, number, callIndex);
+        emit NumberCalled(arenaId, actor, number, callIndex);
 
         if (a.callCount == MAX_NUMBER) {
             a.state = GameState.Revealing;
@@ -224,12 +257,13 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         Arena storage a = s.arenas[arenaId];
         if (a.creator == address(0)) revert ArenaNotFound(arenaId);
         if (a.state != GameState.Playing) revert WrongState(arenaId, GameState.Playing, a.state);
-        if (!s.hasJoined[arenaId][msg.sender]) revert NotAPlayer();
+        address actor = _actor();
+        if (!s.hasJoined[arenaId][actor]) revert NotAPlayer();
 
         a.state = GameState.Revealing;
         a.revealDeadline = uint64(block.timestamp) + REVEAL_WINDOW;
 
-        emit BingoClaimed(arenaId, msg.sender, a.callCount);
+        emit BingoClaimed(arenaId, actor, a.callCount);
         emit RevealPhaseStarted(arenaId, a.revealDeadline);
     }
 
@@ -241,15 +275,16 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
         if (a.creator == address(0)) revert ArenaNotFound(arenaId);
         if (a.state != GameState.Revealing) revert WrongState(arenaId, GameState.Revealing, a.state);
         if (block.timestamp > a.revealDeadline) revert RevealWindowClosed();
-        if (!s.hasJoined[arenaId][msg.sender]) revert NotAPlayer();
-        if (s.hasRevealed[arenaId][msg.sender]) revert AlreadyRevealed();
-        if (!CommitLib.verify(s.boardCommit[arenaId][msg.sender], board, salt)) revert CommitMismatch();
+        address actor = _actor();
+        if (!s.hasJoined[arenaId][actor]) revert NotAPlayer();
+        if (s.hasRevealed[arenaId][actor]) revert AlreadyRevealed();
+        if (!CommitLib.verify(s.boardCommit[arenaId][actor], board, salt)) revert CommitMismatch();
         if (!BoardLib.isValid(board)) revert InvalidBoard();
 
-        s.revealedBoard[arenaId][msg.sender] = board;
-        s.hasRevealed[arenaId][msg.sender] = true;
+        s.revealedBoard[arenaId][actor] = board;
+        s.hasRevealed[arenaId][actor] = true;
 
-        emit BoardRevealed(arenaId, msg.sender);
+        emit BoardRevealed(arenaId, actor);
     }
 
     /// @notice Settle an arena and split the prize. Callable once the reveal window
@@ -350,7 +385,7 @@ contract BingoChain is BingoStorage, Initializable, UUPSUpgradeable, Ownable2Ste
     }
 
     function version() external pure virtual returns (string memory) {
-        return "1.2.0";
+        return "1.3.0";
     }
 
     function treasury() external view returns (address) {
