@@ -3,21 +3,33 @@
 // No-popup gameplay via the contract's on-chain session keys (v1.3.0). The player
 // authorizes an in-app session key once (setSessionKey, one signature); that key
 // then auto-signs every turn (callNumber / claimBingo / revealBoard) with no popup,
-// paying gas NATIVELY — CELO, or cUSD via Celo fee abstraction (CIP-64). No third
-// party, no relayer. The on-chain player stays the connected wallet (identity kept);
-// the session key just acts for them and can never join, withdraw, or move funds.
+// paying gas NATIVELY in a currency the player chooses. No third party, no relayer.
+// The on-chain player stays the connected wallet (identity kept); the session key
+// just acts for them and can never join, withdraw, or move funds.
 
 import { createWalletClient, createPublicClient, http, erc20Abi, type Hex, type Address, type LocalAccount } from "viem";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import { celo } from "viem/chains"; // viem's Celo chain ships the CIP-64 serializer for feeCurrency
-import { bingoAbi, BINGO_ADDRESS, TOKENS } from "./bingo";
+import { bingoAbi, BINGO_ADDRESS } from "./bingo";
 
 const RPC = process.env.NEXT_PUBLIC_CELO_MAINNET_RPC || "https://forno.celo.org";
+
+/// Gas currencies the player can pick to fund the session key. Celo fee
+/// abstraction (CIP-64): CELO is native; cUSD is a fee currency directly; USDT
+/// pays gas via its registered fee adapter. `erc20` is what the player transfers
+/// to the session key; `feeCurrency` is what gas is charged in (undefined = CELO).
+export const GAS_TOKENS = {
+  CELO: { label: "CELO", erc20: undefined as Address | undefined, feeCurrency: undefined as Address | undefined, decimals: 18, fund: "0.05" },
+  cUSD: { label: "cUSD", erc20: "0x765DE816845861e75A25fCA122bb6898B8B1282a" as Address, feeCurrency: "0x765DE816845861e75A25fCA122bb6898B8B1282a" as Address, decimals: 18, fund: "0.15" },
+  USDT: { label: "USDT", erc20: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e" as Address, feeCurrency: "0x0E2A3e05bc9A16F5292A6170456A710cb89C6f72" as Address, decimals: 6, fund: "0.15" },
+} as const;
+export type GasChoice = keyof typeof GAS_TOKENS;
+
 const keyFor = (owner: string) => `bingo:sessionkey:${owner.toLowerCase()}`;
+const feeFor = (owner: string) => `bingo:sessionfee:${owner.toLowerCase()}`;
 const mem: Record<string, Hex> = {};
 
-/// Load (or create + persist) the player's in-app session key. Never throws: if
-/// storage is blocked it keeps an in-session key (sweepable; warn the player).
+/// Load (or create + persist) the player's in-app session key. Never throws.
 export function loadSessionKey(owner: string): Hex {
   const k = keyFor(owner);
   try {
@@ -34,35 +46,44 @@ export function loadSessionKey(owner: string): Hex {
 
 export const sessionAccount = (owner: string): LocalAccount => privateKeyToAccount(loadSessionKey(owner));
 
-const pub = createPublicClient({ chain: celo, transport: http(RPC) });
-
-/// Native CELO + cUSD balances of the session key, and the feeCurrency to use:
-/// undefined => pay gas in native CELO; cUSD address => pay gas in cUSD (CIP-64).
-export async function sessionGas(owner: string) {
-  const address = sessionAccount(owner).address;
-  const cusd = TOKENS.cUSD.address as Address;
-  const [celoBal, cusdBal] = await Promise.all([
-    pub.getBalance({ address }),
-    pub.readContract({ address: cusd, abi: erc20Abi, functionName: "balanceOf", args: [address] }) as Promise<bigint>,
-  ]);
-  const feeCurrency = celoBal > 0n ? undefined : cusdBal > 0n ? cusd : undefined;
-  return { address, celo: celoBal, cusd: cusdBal, feeCurrency, funded: celoBal > 0n || cusdBal > 0n };
+export function saveGasChoice(owner: string, choice: GasChoice) {
+  try {
+    localStorage.setItem(feeFor(owner), choice);
+  } catch {
+    /* ignore */
+  }
+}
+export function loadGasChoice(owner: string): GasChoice {
+  try {
+    const c = localStorage.getItem(feeFor(owner)) as GasChoice | null;
+    return c && c in GAS_TOKENS ? c : "CELO";
+  } catch {
+    return "CELO";
+  }
 }
 
-/// Auto-signed BingoChain call from the session key (no popup), gas paid natively.
-export async function sessionWrite(
-  owner: string,
-  functionName: string,
-  args: readonly unknown[],
-  feeCurrency?: Address,
-): Promise<Hex> {
+const pub = createPublicClient({ chain: celo, transport: http(RPC) });
+
+/// Is the session key funded for gas in the chosen currency?
+export async function sessionFunded(owner: string): Promise<boolean> {
+  const opt = GAS_TOKENS[loadGasChoice(owner)];
+  const address = sessionAccount(owner).address;
+  if (!opt.erc20) return (await pub.getBalance({ address })) > 0n;
+  const bal = (await pub.readContract({ address: opt.erc20, abi: erc20Abi, functionName: "balanceOf", args: [address] })) as bigint;
+  return bal > 0n;
+}
+
+/// Auto-signed BingoChain call from the session key (no popup), gas paid in the
+/// player's chosen currency.
+export async function sessionWrite(owner: string, functionName: string, args: readonly unknown[]): Promise<Hex> {
+  const opt = GAS_TOKENS[loadGasChoice(owner)];
   const wallet = createWalletClient({ account: sessionAccount(owner), chain: celo, transport: http(RPC) });
   const hash = await wallet.writeContract({
     address: BINGO_ADDRESS,
     abi: bingoAbi,
     functionName,
     args,
-    ...(feeCurrency ? { feeCurrency } : {}),
+    ...(opt.feeCurrency ? { feeCurrency: opt.feeCurrency } : {}),
   } as Parameters<typeof wallet.writeContract>[0]);
   await pub.waitForTransactionReceipt({ hash, timeout: 120_000 });
   return hash;
