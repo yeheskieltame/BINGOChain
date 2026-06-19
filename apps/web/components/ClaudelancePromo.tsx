@@ -1,11 +1,39 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowUpRight, Sparkles, X } from "lucide-react";
+import { ArrowUpRight, Coins, LayoutGrid, Sparkles, X } from "lucide-react";
 
-/// A dismissible, ad-style promo that cross-promotes Claudelance (the onchain
-/// AI-agent marketplace BINGOChain is built on) and links to claudelance.xyz.
-const KEY = "cl-promo-dismissed-v1";
+/// Dismissible "Claudelance ecosystem" promo shown across BINGOChain. It cross-
+/// promotes the two products BINGOChain is built on: Claudelance (the onchain
+/// marketplace for AI-agent labor) and the new Claudelance Coworking board.
+/// Styled in the cinematic navy + neon liquid-glass language so it reads as a
+/// native part of the app. The dismissal key is versioned: bumping it re-shows
+/// the (redesigned) promo to everyone who dismissed an earlier version.
+const KEY = "cl-ecosystem-promo-dismissed-v2";
+
+type Promo = {
+  href: string;
+  icon: typeof Coins;
+  badge?: string;
+  title: string;
+  blurb: string;
+};
+
+const PROMOS: Promo[] = [
+  {
+    href: "https://claudelance.xyz",
+    icon: Coins,
+    title: "Claudelance",
+    blurb: "The onchain marketplace where AI agents take bounties for real rewards.",
+  },
+  {
+    href: "https://claudelance.xyz/coworking",
+    icon: LayoutGrid,
+    badge: "New",
+    title: "Coworking",
+    blurb: "Agent-native task board for your agents and team. REST plus MCP.",
+  },
+];
 
 export function ClaudelancePromo() {
   const [show, setShow] = useState(false);
@@ -29,11 +57,11 @@ export function ClaudelancePromo() {
   if (!show) return null;
 
   return (
-    <div className="animate-fade-rise fixed bottom-24 right-4 z-40 max-w-[19rem] md:bottom-4">
-      <div className="liquid-glass relative overflow-hidden rounded-2xl bg-navy/70 p-4 pr-5">
+    <div className="animate-fade-rise fixed bottom-24 right-4 z-40 w-[20rem] max-w-[calc(100vw-2rem)] md:bottom-4">
+      <div className="liquid-glass relative overflow-hidden rounded-2xl bg-navy/80 p-4">
         <div
           aria-hidden
-          className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-neon/15 blur-2xl"
+          className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-neon/15 blur-2xl"
         />
         <button
           type="button"
@@ -45,24 +73,43 @@ export function ClaudelancePromo() {
         </button>
 
         <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-neon/80">
-          <Sparkles className="size-3" /> Powered by Claudelance
+          <Sparkles className="size-3" /> Claudelance Ecosystem
         </p>
-        <p className="mt-2 font-anton text-lg uppercase leading-tight text-cream">
-          Put AI agents to work, onchain
-        </p>
-        <p className="mt-1.5 text-xs leading-relaxed text-cream/70">
-          BINGOChain is built on Claudelance, the onchain marketplace where AI agents take bounties for real rewards.
+        <p className="mt-1.5 font-anton text-base uppercase leading-tight text-cream">
+          Built on Claudelance
         </p>
 
-        <a
-          href="https://claudelance.xyz"
-          target="_blank"
-          rel="noreferrer"
-          className="mt-3 inline-flex items-center gap-1 rounded-full bg-neon px-3.5 py-1.5 font-anton text-xs uppercase tracking-wide text-navy transition-transform hover:scale-[1.03]"
-        >
-          Visit claudelance.xyz
-          <ArrowUpRight className="size-3.5" />
-        </a>
+        <div className="mt-3 space-y-1.5">
+          {PROMOS.map(({ href, icon: Icon, badge, title, blurb }) => (
+            <a
+              key={href}
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="group/row flex gap-2.5 rounded-xl border border-white/5 bg-white/[0.03] p-2.5 transition-colors hover:border-neon/30 hover:bg-white/[0.06]"
+            >
+              <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-neon/15 text-neon">
+                <Icon className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5">
+                  <span className="font-anton text-xs uppercase tracking-wide text-cream">{title}</span>
+                  {badge ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-neon/15 px-1.5 py-px font-mono text-[8px] uppercase tracking-wider text-neon">
+                      <span className="relative flex size-1.5">
+                        <span className="absolute inline-flex size-full animate-ping rounded-full bg-neon/70" />
+                        <span className="relative inline-flex size-1.5 rounded-full bg-neon" />
+                      </span>
+                      {badge}
+                    </span>
+                  ) : null}
+                  <ArrowUpRight className="ml-auto size-3.5 shrink-0 text-cream/40 transition-all group-hover/row:-translate-y-0.5 group-hover/row:translate-x-0.5 group-hover/row:text-neon" />
+                </span>
+                <span className="mt-0.5 block text-[11px] leading-snug text-cream/60">{blurb}</span>
+              </span>
+            </a>
+          ))}
+        </div>
       </div>
     </div>
   );
