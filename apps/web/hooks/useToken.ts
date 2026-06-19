@@ -43,6 +43,7 @@ export function useToken(token: `0x${string}`) {
 
   return {
     balance: balance.data ?? 0n,
+    balanceLoading: balance.isLoading,
     allowance: allowance.data ?? 0n,
     approve,
     isApproving: isPending,
