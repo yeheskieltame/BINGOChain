@@ -1,15 +1,16 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
-import { ArrowUpRight, Coins, LayoutGrid, Sparkles, X } from "lucide-react";
+import { ArrowUpRight, Coins, LayoutGrid, X } from "lucide-react";
 
 /// Dismissible "Claudelance ecosystem" promo shown across BINGOChain. It cross-
 /// promotes the two products BINGOChain is built on: Claudelance (the onchain
 /// marketplace for AI-agent labor) and the new Claudelance Coworking board.
-/// Styled in the cinematic navy + neon liquid-glass language so it reads as a
-/// native part of the app. The dismissal key is versioned: bumping it re-shows
-/// the (redesigned) promo to everyone who dismissed an earlier version.
-const KEY = "cl-ecosystem-promo-dismissed-v2";
+/// Solid navy card (no glass translucency, fully opaque) carrying the Claudelance
+/// logo, so it reads as a crisp, native part of the app. The dismissal key is
+/// versioned: bumping it re-shows the redesign to everyone who dismissed before.
+const KEY = "cl-ecosystem-promo-dismissed-v3";
 
 type Promo = {
   href: string;
@@ -58,7 +59,7 @@ export function ClaudelancePromo() {
 
   return (
     <div className="animate-fade-rise fixed bottom-24 right-4 z-40 w-[20rem] max-w-[calc(100vw-2rem)] md:bottom-4">
-      <div className="liquid-glass relative overflow-hidden rounded-2xl bg-navy/80 p-4">
+      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-navy p-4 shadow-[0_18px_50px_-12px_rgba(0,0,0,0.75),inset_0_1px_0_0_rgba(255,255,255,0.08)]">
         <div
           aria-hidden
           className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-neon/15 blur-2xl"
@@ -72,12 +73,19 @@ export function ClaudelancePromo() {
           <X className="size-3.5" />
         </button>
 
-        <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-neon/80">
-          <Sparkles className="size-3" /> Claudelance Ecosystem
-        </p>
-        <p className="mt-1.5 font-anton text-base uppercase leading-tight text-cream">
-          Built on Claudelance
-        </p>
+        <div className="flex items-center gap-2.5 pr-6">
+          <Image
+            src="/claudelance-logo.png"
+            alt="Claudelance"
+            width={36}
+            height={36}
+            className="size-9 shrink-0 rounded-lg"
+          />
+          <div className="min-w-0">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-neon/80">Claudelance Ecosystem</p>
+            <p className="font-anton text-base uppercase leading-tight text-cream">Built on Claudelance</p>
+          </div>
+        </div>
 
         <div className="mt-3 space-y-1.5">
           {PROMOS.map(({ href, icon: Icon, badge, title, blurb }) => (
