@@ -6,6 +6,7 @@ import { erc20Abi, parseEther, parseUnits } from "viem";
 import { useAccount, useReadContract, useSendTransaction, useWriteContract } from "wagmi";
 import { bingoAbi, BINGO_ADDRESS, CHAIN_ID } from "../../../lib/bingo";
 import { commitment, randomBoard, randomSalt, completedLines } from "../../../lib/board";
+import { LANCE_ADDRESS } from "../../../lib/lance";
 import { sessionAccount, sessionWrite, sessionFunded, saveGasChoice, GAS_TOKENS, type GasChoice } from "../../../lib/session";
 import { isMiniPay, miniPayTx, MINIPAY_ADD_CASH } from "../../../lib/minipay";
 import Link from "next/link";
@@ -55,7 +56,7 @@ export default function ArenaPage() {
 
   const token = (arena?.token ?? "0x0000000000000000000000000000000000000000") as `0x${string}`;
   const t = tokenInfo(token);
-  const { allowance, approve } = useToken(token);
+  const { balance, balanceLoading, allowance, approve, refetch: refetchToken } = useToken(token);
 
   // Smooth play (no popup per turn): the player authorizes an in-app SESSION KEY
   // on-chain (setSessionKey) that auto-signs every move, gas paid natively. The
@@ -138,6 +139,7 @@ export default function ArenaPage() {
       await fn();
       await new Promise((r) => setTimeout(r, 4000));
       refetch();
+      refetchToken();
       earnings.refetch();
     } catch (e) {
       const m = errText(e);
@@ -149,6 +151,16 @@ export default function ArenaPage() {
 
   async function join(board: number[]) {
     if (!address || !arena) return;
+    // Pre-flight the stake balance so we never fire approve + commitBoard when the
+    // wallet can't cover the stake. Without this the approve goes through (costing
+    // gas) and commitBoard then reverts on its internal transferFrom, which looked
+    // like an unexplained "join failed and bounced back". Bail with a clear message.
+    if (balance < arena.stake) {
+      const need = t ? `${formatAmount(arena.stake, t.decimals)} ${t.symbol}` : "the stake";
+      const have = t ? `${formatAmount(balance, t.decimals)} ${t.symbol}` : "less than that";
+      setMsg(`Not enough ${t?.symbol ?? "balance"} to join. You need ${need} but have ${have}. Nothing was sent — top up and try again.`);
+      return;
+    }
     // Reuse the board + salt already sealed for this arena if one exists, so a
     // re-submit (double click, retry, or rejoining a stale view) can NEVER
     // replace the salt that was committed on-chain. Overwriting it was the bug
@@ -247,6 +259,9 @@ export default function ArenaPage() {
 
   const state = Number(arena.state);
   const STATES = ["Created", "Committed", "Playing", "Revealing", "Settled", "Cancelled"];
+  // Pre-flight: does the connected wallet hold enough stake token to join? Held
+  // back while the balance is still loading so we never flash a false "not enough".
+  const insufficientStake = !!address && !balanceLoading && balance < arena.stake;
   const myTurn = state === 1 || state === 2 ? players[Number(arena.turnIndex)]?.toLowerCase() === me?.toLowerCase() : false;
   const lines = mine ? completedLines(mine.board, calledSet) : 0;
   const lastCalled = calls.length ? calls[calls.length - 1] : undefined;
@@ -384,17 +399,58 @@ export default function ArenaPage() {
             </div>
           </div>
           <BoardBuilder value={draft} onChange={setDraft} disabled={busy} />
+
+          {address && t && (
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2 font-mono text-xs">
+              <span className="text-muted-foreground">
+                Stake{" "}
+                <span className="text-cream">
+                  {formatAmount(arena.stake, t.decimals)} {t.symbol}
+                </span>
+              </span>
+              <span className={cn("text-muted-foreground", insufficientStake && "font-semibold text-destructive")}>
+                You have {balanceLoading ? "…" : formatAmount(balance, t.decimals)} {t.symbol}
+              </span>
+            </div>
+          )}
+
+          {insufficientStake && (
+            <div className="space-y-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs leading-relaxed text-destructive">
+              <p>
+                Not enough {t?.symbol} to join. This arena needs{" "}
+                <span className="font-mono">
+                  {t ? formatAmount(arena.stake, t.decimals) : ""} {t?.symbol}
+                </span>{" "}
+                and you have{" "}
+                <span className="font-mono">
+                  {t ? formatAmount(balance, t.decimals) : "0"} {t?.symbol}
+                </span>
+                . Nothing is sent until you can cover the stake.
+              </p>
+              {token.toLowerCase() === LANCE_ADDRESS.toLowerCase() && (
+                <Link
+                  href="/profile"
+                  className="inline-flex items-center gap-1 font-semibold text-neon underline-offset-4 hover:underline"
+                >
+                  Get $LANCE →
+                </Link>
+              )}
+            </div>
+          )}
+
           <Button
             onClick={() => boardComplete && run(() => join(draft as number[]))}
-            disabled={busy || !address || !boardComplete}
+            disabled={busy || !address || !boardComplete || balanceLoading || insufficientStake}
             size="lg"
             className="w-full"
           >
             {busy
               ? "Joining…"
-              : boardComplete
-                ? "Join with this board"
-                : `Place all 25 numbers (${draft.filter((n) => n !== null).length}/25)`}
+              : insufficientStake
+                ? `Not enough ${t?.symbol ?? "balance"}`
+                : !boardComplete
+                  ? `Place all 25 numbers (${draft.filter((n) => n !== null).length}/25)`
+                  : "Join with this board"}
           </Button>
         </div>
       )}
