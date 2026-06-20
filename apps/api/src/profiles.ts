@@ -1,7 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { randomBytes } from "node:crypto";
-import { isAddress, verifyMessage } from "viem";
+import { isAddress } from "viem";
+import { celoClient } from "./chain.ts";
 
 // Lightweight wallet-signature auth: issue a single-use nonce, the client signs
 // a fixed message containing it, we verify the signature recovers to the claimed
@@ -80,7 +81,7 @@ export function registerProfileRoutes(app: FastifyInstance, pool: Pool) {
 
     let ok = false;
     try {
-      ok = await verifyMessage({
+      ok = await celoClient.verifyMessage({
         address: address as `0x${string}`,
         message: messageFor(address, entry.nonce),
         signature: signature as `0x${string}`,
