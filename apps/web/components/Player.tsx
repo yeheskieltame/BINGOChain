@@ -20,7 +20,6 @@ export function Player({
   address,
   name,
   imageUrl,
-  subtitle,
   size = "md",
   link = true,
   className,
@@ -28,7 +27,6 @@ export function Player({
   address: string;
   name?: string;
   imageUrl?: string | null;
-  subtitle?: string;
   size?: keyof typeof AVATAR_PX;
   link?: boolean;
   className?: string;
@@ -39,7 +37,6 @@ export function Player({
       <PlayerAvatar address={address} imageUrl={imageUrl} size={AVATAR_PX[size]} />
       <span className="min-w-0">
         <span className={cn("block truncate text-foreground", name ? "font-medium" : "font-mono text-sm")}>{label}</span>
-        {subtitle && <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>}
       </span>
     </>
   );
