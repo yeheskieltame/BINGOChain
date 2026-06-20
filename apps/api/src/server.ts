@@ -25,7 +25,7 @@ const pool = new pg.Pool({
 // format with formatEther for display.
 const fmt = (v: string | number | null) => (v == null ? "0" : formatEther(BigInt(v)));
 
-const app = Fastify({ logger: true });
+const app = Fastify({ logger: true, trustProxy: true });
 // Pin CORS to the known frontend (its Vercel previews + localhost dev) instead of
 // reflecting any Origin, so a third-party page can't drive the auth/admin routes
 // from a victim's browser. Requests with no Origin (curl, server-to-server) pass.
