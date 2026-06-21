@@ -18,7 +18,6 @@ import { tokenInfo } from "../../../components/ArenaCard";
 import { BoardGrid } from "../../../components/BoardGrid";
 import { BoardBuilder } from "../../../components/BoardBuilder";
 import { BingoMeter } from "../../../components/BingoMeter";
-import { NumberPad } from "../../../components/NumberPad";
 import { ConnectButton } from "../../../components/ConnectButton";
 import { PlayerAvatar } from "../../../components/PlayerAvatar";
 import { useProfiles } from "../../../hooks/useProfiles";
@@ -456,54 +455,51 @@ export default function ArenaPage() {
       )}
       {state === 0 && joined && <p className="text-sm text-state-open">Joined — waiting for the arena to fill.</p>}
 
-      {/* Playing: board progress + call + claim */}
-      {(state === 1 || state === 2) && (
-        <>
-          <div className="grid gap-5 sm:grid-cols-2">
-            {mine && (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Your board · <span className="text-gold-300">{lines}/5</span> lines
-                </p>
-                <BoardGrid board={mine.board} called={calledSet} lastCalled={lastCalled} />
-                <BingoMeter lines={lines} />
-              </div>
-            )}
-            <div className="space-y-2">
-              {/* Bingo calling is turn-based: only the player whose turn it is can
-                  call a number, then the turn passes to the next. Say so plainly so
-                  a disabled pad never looks like a bug. */}
-              <p className="text-sm">
-                {!joined ? (
-                  <span className="text-muted-foreground">You are spectating — not a player in this arena.</span>
-                ) : myTurn ? (
-                  <span className="font-medium text-state-open">Your turn — pick a number to call.</span>
-                ) : (
-                  <span className="text-muted-foreground">
-                    Waiting for{" "}
-                    <span className="font-mono text-foreground">{shortAddress(players[Number(arena.turnIndex)] ?? "")}</span> to
-                    call…
-                  </span>
-                )}
+      {/* Playing: your board IS the call pad. Bingo calling is turn-based, so on
+          your turn you tap an uncalled number straight on your board to call it;
+          off-turn the cells grey out but still show progress. No second grid. */}
+      {(state === 1 || state === 2) &&
+        (mine ? (
+          <div className="mx-auto w-full max-w-sm space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-muted-foreground">
+                Your board · <span className="text-gold-300">{lines}/5</span> lines
               </p>
-              <NumberPad called={calledSet} disabled={busy || !myTurn} onCall={(n) => run(() => write("callNumber", [id, n]))} lastCalled={lastCalled} />
+              {!joined ? (
+                <span className="font-mono text-xs text-muted-foreground">Spectating</span>
+              ) : myTurn ? (
+                <span className="font-mono text-xs font-medium text-state-open">Your turn — tap a number to call</span>
+              ) : (
+                <span className="font-mono text-xs text-muted-foreground">
+                  Waiting for {shortAddress(players[Number(arena.turnIndex)] ?? "")}…
+                </span>
+              )}
             </div>
+            <BoardGrid
+              board={mine.board}
+              called={calledSet}
+              lastCalled={lastCalled}
+              onCall={joined ? (n) => run(() => write("callNumber", [id, n])) : undefined}
+              disabled={busy || !myTurn}
+            />
+            <BingoMeter lines={lines} />
+            {joined &&
+              (lines >= 5 ? (
+                <Button
+                  onClick={() => run(() => write("claimBingo", [id]))}
+                  disabled={busy}
+                  size="lg"
+                  className="w-full animate-pulse bg-primary text-primary-foreground shadow-glow hover:bg-gold-500"
+                >
+                  {busy ? "Claiming…" : "Claim BINGO!"}
+                </Button>
+              ) : (
+                <p className="text-center text-xs text-muted-foreground">Complete 5 lines (B-I-N-G-O) to claim.</p>
+              ))}
           </div>
-          {joined &&
-            (lines >= 5 ? (
-              <Button
-                onClick={() => run(() => write("claimBingo", [id]))}
-                disabled={busy}
-                size="lg"
-                className="w-full animate-pulse bg-primary text-primary-foreground shadow-glow hover:bg-gold-500"
-              >
-                {busy ? "Claiming…" : "Claim BINGO!"}
-              </Button>
-            ) : (
-              <p className="text-center text-xs text-muted-foreground">Complete 5 lines (B-I-N-G-O) to claim.</p>
-            ))}
-        </>
-      )}
+        ) : (
+          <p className="text-sm text-muted-foreground">You are spectating — not a player in this arena.</p>
+        ))}
 
       {/* Revealing: reveal + settle */}
       {state === 3 && (
