@@ -11,14 +11,23 @@ const center = (cell: number) => ({ x: (cell % 5) * 20 + 10, y: Math.floor(cell 
 /// Renders a 5×5 board. Called cells are gold; the most recently called pulses.
 /// Each completed row/column/diagonal gets a neon strike that skips a hole over
 /// every number (an SVG mask) so the digits stay readable.
+///
+/// Pass `onCall` to make the board its own call pad: every uncalled number is a
+/// button, so the player calls by tapping it straight on their own board, with
+/// no separate number grid. `disabled` greys the taps off-turn while still
+/// showing progress. Without `onCall` the board is read-only (results, replays).
 export function BoardGrid({
   board,
   called,
   lastCalled,
+  onCall,
+  disabled,
 }: {
   board: number[];
   called?: Set<number>;
   lastCalled?: number;
+  onCall?: (n: number) => void;
+  disabled?: boolean;
 }) {
   const struck = called ? completedLineIndices(board, called) : [];
   const maskId = `bm-${useId().replace(/:/g, "")}`;
@@ -29,16 +38,16 @@ export function BoardGrid({
         {board.map((n, i) => {
           const marked = called?.has(n);
           const isLast = marked && n === lastCalled;
-          return (
-            <div
-              key={i}
-              className={cn(
-                "relative flex aspect-square items-center justify-center rounded-lg font-mono text-sm font-bold",
-                marked
-                  ? "bg-gold-sheen text-primary-foreground shadow-glow"
-                  : "border border-white/[0.06] bg-card/60 text-muted-foreground",
-              )}
-            >
+          const callable = !!onCall && !marked && !disabled;
+          const className = cn(
+            "relative flex aspect-square items-center justify-center rounded-lg font-mono text-sm font-bold transition-colors",
+            marked
+              ? "bg-gold-sheen text-primary-foreground shadow-glow"
+              : "border border-white/[0.06] bg-card/60 text-muted-foreground",
+            callable && "cursor-pointer hover:border-gold-400/40 hover:text-gold-300",
+          );
+          const inner = (
+            <>
               {isLast && (
                 <motion.span
                   className="pointer-events-none absolute inset-0 rounded-lg ring-2 ring-gold-300"
@@ -48,6 +57,23 @@ export function BoardGrid({
                 />
               )}
               {n}
+            </>
+          );
+          return onCall ? (
+            <motion.button
+              key={i}
+              type="button"
+              disabled={!callable}
+              onClick={() => onCall(n)}
+              whileTap={callable ? { scale: 0.92 } : undefined}
+              aria-label={marked ? `${n}, already called` : `Call ${n}`}
+              className={className}
+            >
+              {inner}
+            </motion.button>
+          ) : (
+            <div key={i} className={className}>
+              {inner}
             </div>
           );
         })}
