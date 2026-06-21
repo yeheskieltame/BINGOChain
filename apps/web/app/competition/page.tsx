@@ -113,8 +113,39 @@ export default function CupPage() {
               ) : board.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No entries in this window yet.</p>
               ) : (
-                <div className="glass overflow-x-auto rounded-2xl">
-                  <table className="w-full min-w-[460px] text-sm">
+                <>
+                  {/* Mobile: cards (no horizontal overflow) */}
+                  <div className="space-y-2 sm:hidden">
+                    {board.map((r) => (
+                      <div
+                        key={r.address}
+                        className={cn(
+                          "glass rounded-xl p-3",
+                          sel.topN && r.rank <= sel.topN && "ring-1 ring-neon/20",
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="font-mono text-sm">{r.rank <= 3 ? MEDAL[r.rank - 1] : r.rank}</span>
+                            <Player address={r.address} name={r.name ?? undefined} size="sm" />
+                          </div>
+                          <span className="shrink-0 font-mono text-sm font-semibold">{r.volume}</span>
+                        </div>
+                        <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
+                          <span>
+                            Games <span className="font-mono text-foreground">{r.games}</span>
+                          </span>
+                          <span>
+                            Wins <span className="font-mono text-foreground">{r.wins}</span>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop: table */}
+                  <div className="glass hidden overflow-x-auto rounded-2xl sm:block">
+                    <table className="w-full min-w-[460px] text-sm">
                     <thead className="text-left text-xs text-muted-foreground">
                       <tr className="border-b border-border">
                         <th className="px-4 py-3">#</th>
@@ -140,8 +171,9 @@ export default function CupPage() {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
-                </div>
+                    </table>
+                  </div>
+                </>
               )}
             </section>
           )}
