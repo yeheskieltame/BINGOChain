@@ -8,6 +8,7 @@ import { Footer } from "../components/Footer";
 import { SpaceBackdrop } from "../components/SpaceBackdrop";
 import { ClaudelancePromo } from "../components/ClaudelancePromo";
 import { ReferralCapture } from "../components/ReferralCapture";
+import { JsonLd } from "../components/JsonLd";
 import "./globals.css";
 
 // Premium Onchain type system: a characterful grotesque for display, a clean
@@ -19,10 +20,63 @@ const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono", display: 
 const anton = Anton({ subsets: ["latin"], weight: "400", variable: "--font-anton", display: "swap" });
 const condiment = Condiment({ subsets: ["latin"], weight: "400", variable: "--font-condiment", display: "swap" });
 
+const SITE_URL = "https://bingochain.vercel.app";
+const SITE_NAME = "BINGOChain";
+const TAGLINE = "Provably-fair onchain bingo on Celo";
+const DESCRIPTION =
+  "BINGOChain is provably-fair onchain bingo on Celo: commit-reveal sealed boards, verifiable winners, and instant onchain payouts. Strategic multiplayer bingo with no house and nothing to trust.";
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://bingochain.vercel.app"),
-  title: "BINGOChain: onchain bingo on Celo",
-  description: "Strategic onchain bingo on Celo. Sealed boards, verifiable winners, staked in $LANCE.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME}: ${TAGLINE}`,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: DESCRIPTION,
+  applicationName: SITE_NAME,
+  authors: [{ name: SITE_NAME }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: "games",
+  keywords: [
+    "onchain bingo",
+    "provably fair bingo",
+    "blockchain bingo",
+    "Celo game",
+    "onchain gaming",
+    "commit-reveal",
+    "verifiable game",
+    "web3 bingo",
+    "crypto bingo",
+    "multiplayer bingo onchain",
+    "Celo dApp",
+    "MiniPay game",
+  ],
+  alternates: { canonical: "/" },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: `${SITE_NAME}: ${TAGLINE}`,
+    description: DESCRIPTION,
+    url: SITE_URL,
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME}: ${TAGLINE}`,
+    description: DESCRIPTION,
+  },
   // Talent Protocol (Proof of Ship) domain-ownership verification.
   other: {
     "talentapp:project_verification":
@@ -40,6 +94,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable} ${anton.variable} ${condiment.variable}`}>
       <body>
+        <JsonLd />
         <Providers>
           <SpaceBackdrop />
           <ReferralCapture />
