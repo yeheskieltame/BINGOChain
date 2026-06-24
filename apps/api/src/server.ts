@@ -25,8 +25,19 @@ const pool = new pg.Pool({
 // format with formatEther for display.
 const fmt = (v: string | number | null) => (v == null ? "0" : formatEther(BigInt(v)));
 
-const app = Fastify({ logger: true });
-await app.register(cors, { origin: true });
+const app = Fastify({ logger: true, trustProxy: true });
+// Pin CORS to the known frontend (its Vercel previews + localhost dev) instead of
+// reflecting any Origin, so a third-party page can't drive the auth/admin routes
+// from a victim's browser. Requests with no Origin (curl, server-to-server) pass.
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "https://bingochain.vercel.app")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+const originAllowed = (origin: string) =>
+  ALLOWED_ORIGINS.includes(origin) ||
+  /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
+  /^https:\/\/bingochain[\w-]*\.vercel\.app$/.test(origin);
+await app.register(cors, { origin: (origin, cb) => cb(null, !origin || originAllowed(origin)) });
 
 app.get("/api/health", async () => {
   let db = "down";
@@ -130,7 +141,7 @@ app.get<{ Params: { id: string } }>("/api/competitions/:id/leaderboard", async (
      from player_matches pm
      join matches m on m.arena_id = pm.arena_id
      left join players p on p.address = pm.player_address
-     where m.created_at >= $1 and m.created_at <= $2
+     where m.created_at >= $1 and m.created_at <= $2 and pm.outcome in ('win','loss')
      group by pm.player_address, p.name
      order by volume desc, games desc limit 50`,
     [c.rows[0].starts_at, c.rows[0].ends_at],

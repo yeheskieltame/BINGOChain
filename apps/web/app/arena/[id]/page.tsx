@@ -33,7 +33,13 @@ type Saved = { board: number[]; salt: `0x${string}` };
 function loadBoard(id: string, who: string): Saved | null {
   if (typeof window === "undefined") return null;
   const raw = localStorage.getItem(`bingo:${id}:${who.toLowerCase()}`);
-  return raw ? (JSON.parse(raw) as Saved) : null;
+  if (!raw) return null;
+  // Corrupt/legacy data must not crash the (money-handling) arena page mid-render.
+  try {
+    return JSON.parse(raw) as Saved;
+  } catch {
+    return null;
+  }
 }
 function saveBoard(id: string, who: string, data: Saved) {
   localStorage.setItem(`bingo:${id}:${who.toLowerCase()}`, JSON.stringify(data));

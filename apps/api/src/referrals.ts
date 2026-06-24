@@ -1,7 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
-import { randomBytes } from "node:crypto";
-import { isAddress, verifyMessage } from "viem";
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { isAddress } from "viem";
+import { celoClient } from "./chain.ts";
+
+// Constant-time string compare (timingSafeEqual throws on length mismatch).
+const timingSafeEqualStr = (a: string, b: string): boolean => {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+};
 
 // Referral / invite + reward system. A wallet's invite link carries its address
 // as ?ref=; when an invited wallet first connects, the client records the pair
@@ -22,6 +30,35 @@ const REWARD_LANCE = 25;
 const TTL_MS = 10 * 60 * 1000;
 const nonces = new Map<string, { nonce: string; exp: number }>();
 
+// Sybil-farm bound: the SIWE only proves the referree owns its wallet, not a
+// genuine invite, so one entity controlling many wallets could self-refer without
+// limit. Cap how many qualified referrees a single referrer is REWARDED for; the
+// manual mark-paid review stays the final gate. Tune via env.
+const MAX_REWARDED_PER_REFERRER = Number(process.env.REFERRAL_MAX_PER_REFERRER ?? 50);
+
+// Best-effort in-memory per-IP rate limit for the public referral endpoints.
+// Needs Fastify trustProxy so req.ip is the real client behind Railway's proxy.
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = 20;
+const hits = new Map<string, { n: number; resetAt: number }>();
+function rateLimited(ip: string): boolean {
+  const now = Date.now();
+  const e = hits.get(ip);
+  if (!e || e.resetAt < now) {
+    hits.set(ip, { n: 1, resetAt: now + RATE_WINDOW_MS });
+    return false;
+  }
+  e.n += 1;
+  return e.n > RATE_MAX;
+}
+
+// Sweep expired nonces + rate buckets so neither map grows unbounded.
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of nonces) if (v.exp < now) nonces.delete(k);
+  for (const [k, v] of hits) if (v.resetAt < now) hits.delete(k);
+}, 60_000).unref?.();
+
 // The referree signs this to confirm their inviter. Binds both addresses + nonce
 // so a signature for one (referree, inviter) pair can't be reused for another.
 const messageFor = (referree: string, referrer: string, nonce: string) =>
@@ -31,11 +68,25 @@ const messageFor = (referree: string, referrer: string, nonce: string) =>
 // Idempotent: only flips rows that are not yet qualified. Exported so the indexer
 // can refresh on each poll tick, and called lazily on the per-address read.
 export async function refreshReferralQualifications(pool: Pool) {
+  // Qualify a referree once it has a settled game, but only up to
+  // MAX_REWARDED_PER_REFERRER per referrer (the earliest by address) so a sybil
+  // farm cannot mint unbounded rewards to one inviter.
   await pool.query(
-    `update referrals set qualified=true, qualified_at=now(), reward_amount=$1
-     where not qualified
-       and referree in (select distinct player_address from player_matches where outcome in ('win','loss'))`,
-    [REWARD_LANCE],
+    `update referrals r
+     set qualified = true, qualified_at = now(), reward_amount = $1
+     from (
+       select referree from (
+         select x.referree,
+                row_number() over (partition by x.referrer order by x.referree) as rn
+         from referrals x
+         where x.referree in (
+           select distinct player_address from player_matches where outcome in ('win','loss')
+         )
+       ) ranked
+       where ranked.rn <= $2
+     ) eligible
+     where r.referree = eligible.referree and not r.qualified`,
+    [REWARD_LANCE, MAX_REWARDED_PER_REFERRER],
   );
 }
 
@@ -43,6 +94,7 @@ export function registerReferralRoutes(app: FastifyInstance, pool: Pool) {
   // Dedicated nonce for confirming an inviter — the referree calls this, signs the
   // returned message, then posts the signature to /api/referral.
   app.get<{ Params: { address: string } }>("/api/auth/referral-nonce/:address", async (req, reply) => {
+    if (rateLimited(req.ip)) return reply.code(429).send({ error: "rate_limited" });
     const address = req.params.address.toLowerCase();
     if (!isAddress(address)) return reply.code(400).send({ error: "bad_address" });
     const nonce = randomBytes(16).toString("hex");
@@ -51,11 +103,18 @@ export function registerReferralRoutes(app: FastifyInstance, pool: Pool) {
   });
 
   app.post<{ Body: { referrer?: string; referree?: string; signature?: string } }>("/api/referral", async (req, reply) => {
+    if (rateLimited(req.ip)) return reply.code(429).send({ error: "rate_limited" });
     const referrer = String(req.body?.referrer ?? "").toLowerCase();
     const referree = String(req.body?.referree ?? "").toLowerCase();
     if (!isAddress(referrer) || !isAddress(referree)) return reply.code(400).send({ error: "bad_address" });
     if (referrer === referree) return reply.code(400).send({ error: "self_referral" });
 
+    // SECURITY (sybil farm): this SIWE proves only that the *referree* owns its
+    // wallet, NOT that `referrer` genuinely invited anyone, so one entity with many
+    // wallets could self-refer. Mitigations now in place: rewards are capped per
+    // referrer (MAX_REWARDED_PER_REFERRER), these endpoints are rate-limited, and
+    // every payout goes through the manual /referrals/mark-paid review, which stays
+    // the final gate before any real $LANCE moves.
     // SIWE-gate: the referree proves wallet ownership by signing the nonce message.
     const signature = req.body?.signature;
     if (!signature) return reply.code(400).send({ error: "signature_required" });
@@ -63,7 +122,7 @@ export function registerReferralRoutes(app: FastifyInstance, pool: Pool) {
     if (!entry || entry.exp < Date.now()) return reply.code(401).send({ error: "nonce_expired" });
     let ok = false;
     try {
-      ok = await verifyMessage({
+      ok = await celoClient.verifyMessage({
         address: referree as `0x${string}`,
         message: messageFor(referree, referrer, entry.nonce),
         signature: signature as `0x${string}`,
@@ -84,11 +143,12 @@ export function registerReferralRoutes(app: FastifyInstance, pool: Pool) {
   });
 
   app.get<{ Params: { address: string } }>("/api/referral/:address", async (req, reply) => {
+    if (rateLimited(req.ip)) return reply.code(429).send({ error: "rate_limited" });
     const address = req.params.address.toLowerCase();
     if (!isAddress(address)) return reply.code(400).send({ error: "bad_address" });
-    // Refresh lazily so a freshly-qualified referree shows up without waiting for
-    // the next indexer tick.
-    await refreshReferralQualifications(pool);
+    // Read-only: the indexer calls refreshReferralQualifications every poll tick, so
+    // this stays at most ~POLL_MS stale. Doing the table-wide UPDATE here would let
+    // any unauthenticated caller drive write amplification on every request.
     const invited = await pool.query("select count(*)::int as n from referrals where referrer=$1", [address]);
     const qualified = await pool.query(
       "select count(*)::int as n from referrals where referrer=$1 and qualified",
@@ -127,10 +187,11 @@ export function registerReferralRoutes(app: FastifyInstance, pool: Pool) {
   });
 
   // Admin: list/settle pending payouts. Gated by REFERRAL_ADMIN_KEY (env). When
-  // unset the endpoints are disabled (503); otherwise the key must be supplied via
-  // ?key= or the x-admin-key header.
+  // unset the endpoints are disabled (503); otherwise the key must arrive in the
+  // x-admin-key header only (never a query param, which Fastify's logger would
+  // write to logs in cleartext).
   const adminGuard = (
-    req: { query: { key?: string }; headers: Record<string, unknown> },
+    req: { headers: Record<string, unknown> },
     reply: { code: (c: number) => { send: (b: unknown) => unknown } },
   ): boolean => {
     const expected = process.env.REFERRAL_ADMIN_KEY;
@@ -138,8 +199,8 @@ export function registerReferralRoutes(app: FastifyInstance, pool: Pool) {
       reply.code(503).send({ error: "admin_disabled" });
       return false;
     }
-    const provided = req.query.key ?? (req.headers["x-admin-key"] as string | undefined);
-    if (provided !== expected) {
+    const provided = req.headers["x-admin-key"];
+    if (typeof provided !== "string" || !timingSafeEqualStr(provided, expected)) {
       reply.code(401).send({ error: "unauthorized" });
       return false;
     }
@@ -147,7 +208,7 @@ export function registerReferralRoutes(app: FastifyInstance, pool: Pool) {
   };
 
   // Rows ready to be paid: qualified but not yet paid out.
-  app.get<{ Querystring: { key?: string } }>("/api/referrals/payable", async (req, reply) => {
+  app.get("/api/referrals/payable", async (req, reply) => {
     if (!adminGuard(req, reply)) return reply;
     const { rows } = await pool.query(
       `select referrer, referree, reward_amount from referrals
@@ -158,7 +219,7 @@ export function registerReferralRoutes(app: FastifyInstance, pool: Pool) {
   });
 
   // Mark a referree's reward as paid, recording the payout tx hash.
-  app.post<{ Querystring: { key?: string }; Body: { referree?: string; tx?: string } }>(
+  app.post<{ Body: { referree?: string; tx?: string } }>(
     "/api/referrals/mark-paid",
     async (req, reply) => {
       if (!adminGuard(req, reply)) return reply;

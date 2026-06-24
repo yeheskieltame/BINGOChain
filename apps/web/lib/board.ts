@@ -28,17 +28,6 @@ export function randomBoard(): number[] {
   return b;
 }
 
-/// True iff `board` is a permutation of 1..25.
-export function isValidBoard(board: number[]): boolean {
-  if (board.length !== BOARD_SIZE) return false;
-  const seen = new Set<number>();
-  for (const n of board) {
-    if (n < 1 || n > 25 || seen.has(n)) return false;
-    seen.add(n);
-  }
-  return true;
-}
-
 /// A fresh 32-byte salt for sealing a board.
 export function randomSalt(): Hex {
   const bytes = new Uint8Array(32);

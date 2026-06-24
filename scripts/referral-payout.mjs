@@ -64,12 +64,12 @@ const log = (...a) => console.log(`[${new Date().toISOString().slice(11, 19)}]`,
 
 // ── main ─────────────────────────────────────────────────────────────────────
 async function main() {
-  // 1. Fetch payable referrals from the backend
-  const payableUrl = `${API}/api/referrals/payable?key=${ADMIN_KEY}`;
+  // 1. Fetch payable referrals from the backend (admin key in header, not the URL)
+  const payableUrl = `${API}/api/referrals/payable`;
   log(`fetching payable referrals from ${payableUrl}`);
   let items;
   try {
-    const res = await fetch(payableUrl);
+    const res = await fetch(payableUrl, { headers: { "x-admin-key": ADMIN_KEY } });
     if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
     items = await res.json();
   } catch (e) {
@@ -93,7 +93,7 @@ async function main() {
   }
 
   // 2. Process each item sequentially with nonce management
-  let nonce = await pub.getTransactionCount({ address: deployer.address });
+  let nonce = await pub.getTransactionCount({ address: deployer.address, blockTag: "pending" });
   let paid = 0;
   const failures = [];
 
@@ -109,7 +109,7 @@ async function main() {
         abi: ERC20,
         functionName: "transfer",
         args: [getAddress(referrer), amountWei],
-        gas: 80000n,
+        gas: 120000n,
         nonce: nonce++,
         ...FEE,
       });
@@ -145,22 +145,39 @@ async function main() {
       continue;
     }
 
-    // 3. Mark paid on the backend (only after confirmed on-chain success)
-    try {
-      const markUrl = `${API}/api/referrals/mark-paid?key=${ADMIN_KEY}`;
-      const markRes = await fetch(markUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ referree, tx: hash }),
-      });
-      if (!markRes.ok) {
-        const text = await markRes.text().catch(() => "");
-        throw new Error(`HTTP ${markRes.status}: ${text}`);
+    // 3. Mark paid on the backend (only after confirmed on-chain success). A failure
+    //    here is CRITICAL: the $LANCE already moved on-chain but the ledger still
+    //    shows the row payable, so a re-run would pay the SAME referrer AGAIN. Retry,
+    //    then HARD-STOP the run for manual reconciliation rather than continuing.
+    let marked = false;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const markRes = await fetch(`${API}/api/referrals/mark-paid`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": ADMIN_KEY },
+          body: JSON.stringify({ referree, tx: hash }),
+        });
+        if (!markRes.ok) {
+          const text = await markRes.text().catch(() => "");
+          throw new Error(`HTTP ${markRes.status}: ${text}`);
+        }
+        marked = true;
+        break;
+      } catch (e) {
+        if (attempt === 3) {
+          log(`FATAL mark-paid referrer=${referrer} referree=${referree} tx=${hash} — ${e.message}`);
+          failures.push({
+            referrer, referree, amount, hash,
+            error: `MARK-PAID FAILED (ALREADY PAID ON-CHAIN ${hash}) — reconcile before re-running: ${e.message}`,
+          });
+        } else {
+          await new Promise((r) => setTimeout(r, 3000));
+        }
       }
-    } catch (e) {
-      // Transfer already confirmed — log prominently but don't treat as failure
-      log(`WARN mark-paid  referrer=${referrer} referree=${referree} tx=${hash} — ${e.message}`);
     }
+    // Stop the whole run if a confirmed payment could not be recorded: continuing
+    // would risk more unrecorded payments compounding the reconciliation.
+    if (!marked) break;
 
     log(`paid ${amount} $LANCE to ${referrer} for ${referree} tx=${hash}`);
     paid++;

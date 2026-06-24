@@ -10,7 +10,6 @@ export function PageHeader({
   eyebrow,
   title,
   accent,
-  accentClassName,
   subtitle,
   actions,
   className,
@@ -18,7 +17,6 @@ export function PageHeader({
   eyebrow?: string;
   title: ReactNode;
   accent?: string;
-  accentClassName?: string;
   subtitle?: ReactNode;
   actions?: ReactNode;
   className?: string;
@@ -35,10 +33,7 @@ export function PageHeader({
           </h1>
           {accent && (
             <span
-              className={cn(
-                "font-condiment pointer-events-none absolute -bottom-3 -right-3 -rotate-3 text-3xl normal-case text-neon mix-blend-exclusion sm:-bottom-5 sm:-right-7 sm:text-[2.75rem]",
-                accentClassName,
-              )}
+              className="font-condiment pointer-events-none absolute -bottom-3 -right-3 -rotate-3 text-3xl normal-case text-neon mix-blend-exclusion sm:-bottom-5 sm:-right-7 sm:text-[2.75rem]"
             >
               {accent}
             </span>

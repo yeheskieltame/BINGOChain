@@ -43,18 +43,20 @@ export async function startIndexer(pool: Pool, log: Logger) {
     const k = bn.toString();
     const hit = tsCache.get(k);
     if (hit) return hit;
-    // forno throttles bursts of getBlock — retry transient failures.
-    for (let attempt = 0; ; attempt++) {
+    // forno throttles bursts of getBlock — retry transient failures (bounded).
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 4; attempt++) {
       try {
         const b = await client.getBlock({ blockNumber: bn });
         const iso = new Date(Number(b.timestamp) * 1000).toISOString();
         tsCache.set(k, iso);
         return iso;
       } catch (e) {
-        if (attempt >= 3) throw e;
-        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+        lastErr = e;
+        if (attempt < 3) await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
       }
     }
+    throw lastErr;
   };
 
   async function getCursor(): Promise<bigint> {
@@ -136,6 +138,7 @@ export async function startIndexer(pool: Pool, log: Logger) {
       select pm.player_address, count(*)::int, (count(*) filter (where pm.outcome='win'))::int,
              coalesce(sum(m.stake),0), coalesce(sum(pm.prize_won),0), max(m.created_at), now()
       from player_matches pm join matches m on m.arena_id = pm.arena_id
+      where pm.outcome in ('win','loss')
       group by pm.player_address
       on conflict (address) do update set
         games_played=excluded.games_played, games_won=excluded.games_won,
@@ -146,12 +149,12 @@ export async function startIndexer(pool: Pool, log: Logger) {
   async function tick() {
     const head = await client.getBlockNumber();
     let cursor = await getCursor();
+    let processed = 0;
     while (cursor < head) {
       const from = cursor + 1n;
       const to = from + CHUNK - 1n > head ? head : from + CHUNK - 1n;
-      let n = 0;
       try {
-        n = await processRange(from, to);
+        processed += await processRange(from, to);
       } catch (e) {
         // A transient RPC failure mid-backfill: stop here and resume from the
         // saved cursor next tick. Stats already reflect prior chunks.
@@ -160,13 +163,11 @@ export async function startIndexer(pool: Pool, log: Logger) {
       }
       cursor = to;
       await setCursor(cursor);
-      // Recompute per chunk (cheap at this scale) so stats populate
-      // progressively and survive a partial backfill.
-      if (n > 0) {
-        await recomputeStats();
-        log.info({ to: to.toString(), head: head.toString() }, "indexer: chunk indexed");
-      }
+      log.info({ to: to.toString(), head: head.toString() }, "indexer: chunk indexed");
     }
+    // Recompute denormalized stats once per tick, not once per chunk: a long
+    // backfill would otherwise rerun the full-table aggregate for every window.
+    if (processed > 0) await recomputeStats();
   }
 
   // One-time historical scan of revealed boards (only if none stored yet).

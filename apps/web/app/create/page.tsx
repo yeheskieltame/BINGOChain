@@ -6,6 +6,7 @@ import { decodeEventLog } from "viem";
 import { usePublicClient, useWriteContract } from "wagmi";
 import { bingoAbi, BINGO_ADDRESS, CHAIN_ID, MIN_PLAYERS, MAX_PLAYERS, MIN_STAKE, TOKENS } from "../../lib/bingo";
 import { parseAmount } from "../../lib/format";
+import { errText } from "../../lib/utils";
 import { TokenPicker } from "../../components/TokenPicker";
 import { ConnectButton } from "../../components/ConnectButton";
 import { BackButton } from "../../components/BackButton";
@@ -24,6 +25,7 @@ export default function CreatePage() {
   }
   const [seats, setSeats] = useState(2);
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
   const { writeContractAsync } = useWriteContract();
   const client = usePublicClient({ chainId: CHAIN_ID });
   const router = useRouter();
@@ -31,6 +33,7 @@ export default function CreatePage() {
   async function create() {
     if (!client) return;
     setBusy(true);
+    setMsg(null);
     try {
       const t = TOKENS[tokenKey];
       const hash = await writeContractAsync({
@@ -50,7 +53,13 @@ export default function CreatePage() {
           /* not our event */
         }
       }
-      if (id !== undefined) router.push(`/arena/${id}`);
+      if (id === undefined) {
+        setMsg("Arena created, but its id could not be read — find it on /arenas.");
+        return;
+      }
+      router.push(`/arena/${id}`);
+    } catch (e) {
+      setMsg(errText(e));
     } finally {
       setBusy(false);
     }
@@ -96,6 +105,7 @@ export default function CreatePage() {
         <Button onClick={create} disabled={busy} size="lg" className="w-full">
           {busy ? "Creating…" : "Create arena"}
         </Button>
+        {msg && <p className="text-center font-mono text-xs text-amber-400">{msg}</p>}
       </div>
     </main>
   );
