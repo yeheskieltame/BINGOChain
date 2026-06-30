@@ -8,6 +8,10 @@
 
 Live app: [bingochain.vercel.app](https://bingochain.vercel.app) · staked in [$LANCE](https://claudelance.xyz)
 
+[![Dune Analytics](https://img.shields.io/badge/Dune-Live%20Dashboard-FF6C40)](https://dune.com/yeheskiel/bingochain-on-chain-analytics-celo)
+
+📊 **Live on-chain analytics:** [BingoChain dashboard on Dune](https://dune.com/yeheskiel/bingochain-on-chain-analytics-celo). Tracks arenas, unique players, stake volume by token, transactions, gas, the game lifecycle funnel, and the player leaderboard, all decoded straight from the contract on Celo mainnet.
+
 > A PvP arena where players design their own 5×5 board, lock it in a smart contract, and race to BINGO. No trusted server, no hidden randomness, no way to fake a win.
 
 ## Overview
